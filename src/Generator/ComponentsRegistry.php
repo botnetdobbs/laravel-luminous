@@ -28,9 +28,22 @@ class ComponentsRegistry
 
     public function registerAnonymous(string $name, array $schema): string
     {
+        if (! preg_match('/^[a-zA-Z0-9.\-_]+$/', $name)) {
+            throw new \InvalidArgumentException(
+                "Schema name '{$name}' contains characters invalid in an OpenAPI component name."
+            );
+        }
+
         $this->schemas[$name] = $schema;
 
         return "#/components/schemas/{$name}";
+    }
+
+    public function updateSchema(string $class, array $schema): void
+    {
+        if (isset($this->classIndex[$class])) {
+            $this->schemas[$this->classIndex[$class]] = $schema;
+        }
     }
 
     public function isRegistered(string $class): bool

@@ -2,11 +2,19 @@
 
 namespace Botnetdobbs\Luminous\Support;
 
+use Botnetdobbs\Luminous\Extractors\EnumExtractor;
 use Illuminate\Validation\Rules\Enum;
 use Illuminate\Validation\Rules\In;
 
 class TypeMapper
 {
+    private EnumExtractor $enumExtractor;
+
+    public function __construct(?EnumExtractor $enumExtractor = null)
+    {
+        $this->enumExtractor = $enumExtractor ?? new EnumExtractor;
+    }
+
     private const PHP_TO_OPENAPI = [
         'int' => ['type' => 'integer'],
         'float' => ['type' => 'number', 'format' => 'float'],
@@ -60,14 +68,7 @@ class TypeMapper
 
     public function enumToOpenApi(string $enumClass): array
     {
-        $reflection = new \ReflectionEnum($enumClass);
-        $backingType = $reflection->getBackingType()?->getName() ?? 'string';
-        $cases = collect($enumClass::cases())->map(fn ($c) => $c->value)->all();
-
-        return [
-            'type' => $backingType === 'int' ? 'integer' : 'string',
-            'enum' => $cases,
-        ];
+        return $this->enumExtractor->extract($enumClass);
     }
 
     /**
