@@ -33,14 +33,17 @@ return [
     | Middleware applied to all three docs routes. Accepts a comma-separated
     | list of middleware names in the environment variable.
     |
-    | Example: LUMINOUS_MIDDLEWARE=auth,throttle:60,1
+    | Example: LUMINOUS_MIDDLEWARE=auth|throttle:60,1
+    |
+    | Use | as the delimiter, not commas. Commas appear inside middleware parameters
+    | like throttle:60,1 and would silently split them into invalid middleware names.
     |
     | For production, always set at minimum: LUMINOUS_MIDDLEWARE=auth
-    | Leave blank only for local development. Docs are publicly accessible otherwise.
+    | Leaving this blank exposes your full API surface publicly with no authentication.
     |
     */
     'middleware' => env('LUMINOUS_MIDDLEWARE')
-        ? array_map('trim', explode(',', env('LUMINOUS_MIDDLEWARE')))
+        ? array_map('trim', explode('|', env('LUMINOUS_MIDDLEWARE')))
         : [],
 
     /*
@@ -205,6 +208,10 @@ return [
     | "cdn.swagger_ui" is pinned to a specific version. Do not use @latest
     | as breaking changes in a CDN update could silently break the UI.
     |
+    | "cdn.sri" holds the Subresource Integrity hashes for the pinned version.
+    | These prevent a compromised CDN from serving malicious JavaScript.
+    | Update all three hashes whenever you bump the swagger_ui version.
+    |
     */
     'ui' => [
         'persist_authorization' => false,
@@ -214,6 +221,11 @@ return [
         'try_it_out_enabled' => true,
         'cdn' => [
             'swagger_ui' => 'https://unpkg.com/swagger-ui-dist@5.18.2',
+            'sri' => [
+                'swagger-ui.css' => 'sha256-jzPZlgJTFwSdSphk9CHqsrKiR4cvOIAm+pTGVJEyWec=',
+                'swagger-ui-bundle.js' => 'sha256-xQuUu8TwI5Qyb7eu0fT7aTs2d/Sz0zRODWExgIy/KB8=',
+                'swagger-ui-standalone-preset.js' => 'sha256-bFozOOadhOewURe5unsUHSS9P8ECqesC6ATTsE3OxaE=',
+            ],
         ],
     ],
 

@@ -182,7 +182,13 @@ class TypeMapper
                 continue;
             }
             if (str_starts_with($rule, 'between:')) {
-                [$min, $max] = explode(',', substr($rule, 8));
+                $parts = explode(',', substr($rule, 8), 2);
+                if (count($parts) !== 2) {
+                    $this->warn("Luminous: malformed between: rule '{$rule}', expected between:min,max. Skipping.");
+
+                    continue;
+                }
+                [$min, $max] = $parts;
                 $schema[$isNumeric ? 'minimum' : ($isArray ? 'minItems' : 'minLength')] = (int) $min;
                 $schema[$isNumeric ? 'maximum' : ($isArray ? 'maxItems' : 'maxLength')] = (int) $max;
 
@@ -201,7 +207,13 @@ class TypeMapper
             }
             if (str_starts_with($rule, 'digits_between:')) {
                 if (! $isNumeric) {
-                    [$min, $max] = explode(',', substr($rule, 15));
+                    $parts = explode(',', substr($rule, 15), 2);
+                    if (count($parts) !== 2) {
+                        $this->warn("Luminous: malformed digits_between: rule '{$rule}', expected digits_between:min,max. Skipping.");
+
+                        continue;
+                    }
+                    [$min, $max] = $parts;
                     $schema['minLength'] = (int) $min;
                     $schema['maxLength'] = (int) $max;
                     $schema['pattern'] = "^\\d{{$min},{$max}}$";
@@ -224,7 +236,7 @@ class TypeMapper
                 // (atomic groups, named groups, possessive quantifiers, \K, \p{}) that
                 // are invalid ECMAScript and can break Swagger UI or cause ReDoS.
                 if (preg_match('/\(\?>|\(\?P[<\']|[+*?]\+|\\\\K\b|\\\\[pP]\{/', $raw)) {
-                    logger()->warning("Luminous: regex: rule contains PCRE-only constructs that ECMAScript does not support. The pattern may not work correctly in Swagger UI: {$raw}");
+                    $this->warn("Luminous: regex: rule contains PCRE-only constructs that ECMAScript does not support. The pattern may not work correctly in Swagger UI: {$raw}");
                 }
                 $schema['pattern'] = $raw;
 
@@ -269,7 +281,7 @@ class TypeMapper
                 } catch (\Throwable $e) {
                     // Comma-splitting __toString would silently corrupt values containing commas.
                     // Omit the enum list and warn rather than produce a wrong schema.
-                    logger()->warning("Luminous: could not read Rule::In values via reflection, so the enum list was left out of the schema. Error: {$e->getMessage()}");
+                    $this->warn("Luminous: could not read Rule::In values via reflection, so the enum list was left out of the schema. Error: {$e->getMessage()}");
                 }
             } elseif (method_exists($rule, '__toString')) {
                 $str = (string) $rule;
@@ -289,5 +301,14 @@ class TypeMapper
         }
 
         return collect($schema)->filter(fn ($v) => $v !== [] && $v !== '')->all();
+    }
+
+    private function warn(string $message): void
+    {
+        try {
+            logger()->warning($message);
+        } catch (\Throwable) {
+            // No-op when the Laravel container is not available (e.g. unit tests).
+        }
     }
 }

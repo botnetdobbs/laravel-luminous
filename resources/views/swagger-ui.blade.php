@@ -4,7 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{ $title }}: API Docs</title>
-    <link rel="stylesheet" href="{{ $uiConfig['cdn']['swagger_ui'] }}/swagger-ui.css" />
+    <link rel="stylesheet"
+        href="{{ $uiConfig['cdn']['swagger_ui'] }}/swagger-ui.css"
+        @if(!empty($sri['swagger-ui.css'])) integrity="{{ $sri['swagger-ui.css'] }}" crossorigin="anonymous" @endif />
     <style>
         html { box-sizing: border-box; overflow-y: scroll; }
         body { margin: 0; background: #fafafa; }
@@ -13,9 +15,11 @@
 </head>
 <body>
 <div id="swagger-ui"></div>
-<script src="{{ $uiConfig['cdn']['swagger_ui'] }}/swagger-ui-bundle.js"></script>
-<script src="{{ $uiConfig['cdn']['swagger_ui'] }}/swagger-ui-standalone-preset.js"></script>
-<script>
+<script src="{{ $uiConfig['cdn']['swagger_ui'] }}/swagger-ui-bundle.js"
+    @if(!empty($sri['swagger-ui-bundle.js'])) integrity="{{ $sri['swagger-ui-bundle.js'] }}" crossorigin="anonymous" @endif></script>
+<script src="{{ $uiConfig['cdn']['swagger_ui'] }}/swagger-ui-standalone-preset.js"
+    @if(!empty($sri['swagger-ui-standalone-preset.js'])) integrity="{{ $sri['swagger-ui-standalone-preset.js'] }}" crossorigin="anonymous" @endif></script>
+<script nonce="{{ $nonce }}">
     document.addEventListener('DOMContentLoaded', function () {
         SwaggerUIBundle({
             url:                      @json($specUrl),

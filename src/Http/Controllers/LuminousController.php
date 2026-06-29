@@ -55,13 +55,20 @@ class LuminousController extends Controller
 
         $parsed = parse_url((string) $cdnBase);
         $cdnOrigin = isset($parsed['host']) ? (($parsed['scheme'] ?? 'https').'://'.$parsed['host']) : '';
-        $csp = "default-src 'none'; script-src 'self' {$cdnOrigin} 'unsafe-inline'; style-src 'self' {$cdnOrigin} 'unsafe-inline'; img-src 'self' data:; connect-src 'self'";
+        $nonce = base64_encode(random_bytes(16));
+        $csp = "default-src 'none'; script-src 'self' {$cdnOrigin} 'nonce-{$nonce}'; ".
+               "style-src 'self' {$cdnOrigin} 'unsafe-inline'; ".
+               "img-src 'self' data:; connect-src 'self'; frame-ancestors 'self'";
+
+        $sri = $uiConfig['cdn']['sri'] ?? [];
 
         return response()
             ->view('luminous::swagger-ui', [
                 'title' => config('luminous.info.title'),
                 'specUrl' => route('luminous.json'),
                 'uiConfig' => $uiConfig,
+                'nonce' => $nonce,
+                'sri' => $sri,
             ])
             ->header('X-Frame-Options', 'SAMEORIGIN')
             ->header('X-Content-Type-Options', 'nosniff')

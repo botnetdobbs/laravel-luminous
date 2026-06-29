@@ -68,6 +68,13 @@ class LuminousServiceProvider extends ServiceProvider
 
         if ($this->app['config']['luminous.enabled']) {
             $this->loadRoutes();
+
+            if (empty($this->app['config']['luminous.middleware']) && $this->app->environment('production')) {
+                logger()->warning(
+                    'Luminous: API docs are publicly accessible in production with no middleware. '.
+                    'Set LUMINOUS_MIDDLEWARE=auth or LUMINOUS_ENABLED=false in your .env.'
+                );
+            }
         }
 
         if ($this->app->runningInConsole()) {

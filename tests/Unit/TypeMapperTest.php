@@ -238,4 +238,20 @@ class TypeMapperTest extends TestCase
         $this->assertTrue($schema['writeOnly']);
         $this->assertSame('password', $schema['format']);
     }
+
+    public function test_between_rule_without_comma_skips_gracefully(): void
+    {
+        $schema = $this->mapper->validationRulesToSchema(['integer', 'between:5']);
+
+        $this->assertArrayNotHasKey('minimum', $schema);
+        $this->assertArrayNotHasKey('maximum', $schema);
+    }
+
+    public function test_between_rule_with_correct_format_applies_constraints(): void
+    {
+        $schema = $this->mapper->validationRulesToSchema(['integer', 'between:1,100']);
+
+        $this->assertSame(1, $schema['minimum']);
+        $this->assertSame(100, $schema['maximum']);
+    }
 }

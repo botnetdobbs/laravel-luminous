@@ -136,4 +136,48 @@ class HttpLayerTest extends TestCase
             $this->assertStringContainsString('openapi:', $output);
         }
     }
+
+    public function test_ui_csp_uses_nonce_not_unsafe_inline_in_script_src(): void
+    {
+        $response = $this->get('/docs');
+
+        $response->assertStatus(200);
+        $csp = $response->headers->get('Content-Security-Policy');
+        $this->assertStringContainsString("'nonce-", $csp);
+        $this->assertStringNotContainsString("'unsafe-inline'", explode(';', $csp)[1] ?? $csp);
+    }
+
+    public function test_ui_csp_contains_frame_ancestors_self(): void
+    {
+        $response = $this->get('/docs');
+
+        $response->assertStatus(200);
+        $csp = $response->headers->get('Content-Security-Policy');
+        $this->assertStringContainsString("frame-ancestors 'self'", $csp);
+    }
+
+    public function test_ui_html_contains_nonce_on_inline_script(): void
+    {
+        $response = $this->get('/docs');
+
+        $response->assertStatus(200);
+        $this->assertMatchesRegularExpression('/<script nonce="[A-Za-z0-9+\/=]+"/', $response->getContent());
+    }
+
+    public function test_ui_html_contains_sri_integrity_on_bundle_script(): void
+    {
+        $response = $this->get('/docs');
+
+        $response->assertStatus(200);
+        $this->assertStringContainsString('integrity="sha256-', $response->getContent());
+        $this->assertStringContainsString('crossorigin="anonymous"', $response->getContent());
+    }
+
+    public function test_middleware_pipe_delimiter_parses_throttle_correctly(): void
+    {
+        $parsed = array_map('trim', explode('|', 'auth|throttle:60,1'));
+
+        $this->assertSame(['auth', 'throttle:60,1'], $parsed);
+        $this->assertCount(2, $parsed);
+    }
 }
