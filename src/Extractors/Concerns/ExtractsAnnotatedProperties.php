@@ -11,14 +11,12 @@ use Botnetdobbs\Luminous\Support\TypeMapper;
 
 trait ExtractsAnnotatedProperties
 {
-    abstract protected function typeMapper(): TypeMapper;
-
-    abstract protected function registry(): ComponentsRegistry;
-
-    abstract protected function enumExtractor(): EnumExtractor;
-
-    protected function extractAnnotatedProperties(\ReflectionClass $reflection): array
-    {
+    protected function extractAnnotatedProperties(
+        \ReflectionClass $reflection,
+        TypeMapper $typeMapper,
+        ComponentsRegistry $registry,
+        EnumExtractor $enumExtractor,
+    ): array {
         $properties = [];
         $required = [];
 
@@ -56,8 +54,7 @@ trait ExtractsAnnotatedProperties
 
             // PHP backed enum. Register in components and reference it. Nullable uses oneOf.
             if (class_exists($phpType) && is_subclass_of($phpType, \BackedEnum::class)) {
-                $enumSchema = $this->enumExtractor()->extract($phpType);
-                $ref = $this->registry()->register($phpType, $enumSchema);
+                $ref = self::registerEnumRef($phpType, $registry, $enumExtractor);
                 if ($nullable) {
                     $properties[$propName] = ['oneOf' => [['$ref' => $ref], ['type' => 'null']]];
                 } else {
@@ -70,7 +67,7 @@ trait ExtractsAnnotatedProperties
                 continue;
             }
 
-            $schema = $this->typeMapper()->phpTypeToOpenApi($phpType, $apiProp->format);
+            $schema = $typeMapper->phpTypeToOpenApi($phpType, $apiProp->format);
 
             if ($apiProp->description) {
                 $schema['description'] = $apiProp->description;
@@ -124,6 +121,14 @@ trait ExtractsAnnotatedProperties
         }
 
         return compact('properties', 'required');
+    }
+
+    private static function registerEnumRef(
+        string $class,
+        ComponentsRegistry $registry,
+        EnumExtractor $enumExtractor,
+    ): string {
+        return $registry->register($class, $enumExtractor->extract($class));
     }
 
     private function resolveArrayItems(\ReflectionProperty $prop, ApiProperty $apiProp): array

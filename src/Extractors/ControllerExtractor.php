@@ -35,6 +35,7 @@ class ControllerExtractor
 
         $classRef = new \ReflectionClass($route->controllerClass);
 
+        // Defensive: RouteExtractor already filters ignored routes; these guards cover direct callers.
         if (! empty($classRef->getAttributes(ApiIgnore::class))) {
             return [];
         }
@@ -134,27 +135,22 @@ class ControllerExtractor
 
         $methodSecAttrs = $methodRef->getAttributes(ApiSecurity::class);
         if (! empty($methodSecAttrs)) {
-            return collect($methodSecAttrs)
-                ->map(function ($a) {
-                    $sec = $a->newInstance();
-
-                    return [$sec->scheme => $sec->scopes];
-                })
-                ->all();
+            return $this->mapSecurityAttributes($methodSecAttrs);
         }
 
         $classSecAttrs = $classRef->getAttributes(ApiSecurity::class);
         if (! empty($classSecAttrs)) {
-            return collect($classSecAttrs)
-                ->map(function ($a) {
-                    $sec = $a->newInstance();
-
-                    return [$sec->scheme => $sec->scopes];
-                })
-                ->all();
+            return $this->mapSecurityAttributes($classSecAttrs);
         }
 
         return $this->config['default_security'] ?? [];
+    }
+
+    private function mapSecurityAttributes(array $attrs): array
+    {
+        return collect($attrs)
+            ->map(fn ($a) => (fn ($s) => [$s->scheme => $s->scopes])($a->newInstance()))
+            ->all();
     }
 
     private function buildParameters(\ReflectionMethod $methodRef, ExtractedRoute $route): array

@@ -20,6 +20,8 @@ class ComponentsRegistry
 
         if (! isset($this->schemas[$name])) {
             $this->schemas[$name] = $schema;
+        } elseif ($this->schemas[$name] !== $schema) {
+            logger()->debug("Luminous: re-registration of [{$class}] ignored; use updateSchema() to overwrite.");
         }
         if (! isset($this->classIndex[$class])) {
             $this->classIndex[$class] = $name;

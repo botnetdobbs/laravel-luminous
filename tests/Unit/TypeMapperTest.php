@@ -15,7 +15,7 @@ class TypeMapperTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->mapper = new TypeMapper;
+        $this->mapper = new TypeMapper(new EnumExtractor);
     }
 
     public function test_integer_min_max_produces_minimum_maximum_not_length(): void

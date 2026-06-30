@@ -2,7 +2,7 @@
 
 namespace Botnetdobbs\Luminous\Attributes;
 
-#[\Attribute(\Attribute::TARGET_METHOD | \Attribute::TARGET_PROPERTY | \Attribute::IS_REPEATABLE)]
+#[\Attribute(\Attribute::TARGET_METHOD | \Attribute::IS_REPEATABLE)]
 final class ApiComposedOf
 {
     public function __construct(

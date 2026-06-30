@@ -50,7 +50,7 @@ class LuminousServiceProvider extends ServiceProvider
 
         $this->app->alias(OpenApiGenerator::class, 'luminous');
 
-        $this->app->singleton(CacheManager::class);
+        $this->app->singleton(CacheManager::class, fn ($app) => new CacheManager($app['config']['luminous']));
         $this->app->singleton(YamlExporter::class);
     }
 

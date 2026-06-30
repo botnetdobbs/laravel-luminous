@@ -10,9 +10,9 @@ class TypeMapper
 {
     private EnumExtractor $enumExtractor;
 
-    public function __construct(?EnumExtractor $enumExtractor = null)
+    public function __construct(EnumExtractor $enumExtractor)
     {
-        $this->enumExtractor = $enumExtractor ?? new EnumExtractor;
+        $this->enumExtractor = $enumExtractor;
     }
 
     private const PHP_TO_OPENAPI = [

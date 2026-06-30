@@ -19,21 +19,6 @@ class RequestExtractor
         private readonly EnumExtractor $enumExtractor,
     ) {}
 
-    protected function typeMapper(): TypeMapper
-    {
-        return $this->typeMapper;
-    }
-
-    protected function registry(): ComponentsRegistry
-    {
-        return $this->registry;
-    }
-
-    protected function enumExtractor(): EnumExtractor
-    {
-        return $this->enumExtractor;
-    }
-
     public function extract(string $requestClass): array
     {
         if (! class_exists($requestClass)) {
@@ -106,10 +91,10 @@ class RequestExtractor
         }
 
         // Strategy 2: public properties with #[ApiProperty] + hints() overlay
-        ['properties' => $properties, 'required' => $required] = $this->extractAnnotatedProperties($reflection);
+        ['properties' => $properties, 'required' => $required] = $this->extractAnnotatedProperties($reflection, $this->typeMapper, $this->registry, $this->enumExtractor);
 
         if (! empty($properties)) {
-            $hints = $this->loadHints($requestClass);
+            $hints = $this->loadHints($reflection);
             foreach ($hints as $field => $hint) {
                 if (isset($properties[$field])) {
                     $properties[$field] = $this->mergeHint($properties[$field], $hint);
@@ -125,15 +110,17 @@ class RequestExtractor
         }
 
         // Strategy 3: rules() + hints()
-        return $this->extractFromRules($requestClass);
+        return $this->extractFromRules($reflection);
     }
 
     // Strategy 3: rules() + hints()
 
-    private function extractFromRules(string $requestClass): array
+    private function extractFromRules(\ReflectionClass $reflection): array
     {
+        $requestClass = $reflection->getName();
+
         try {
-            $instance = (new \ReflectionClass($requestClass))->newInstanceWithoutConstructor();
+            $instance = $reflection->newInstanceWithoutConstructor();
         } catch (\Throwable $e) {
             logger()->warning("Luminous: Cannot instantiate [{$requestClass}]: {$e->getMessage()}");
 
@@ -152,7 +139,7 @@ class RequestExtractor
             return ['type' => 'object', 'properties' => []];
         }
 
-        $hints = $this->loadHints($requestClass);
+        $hints = $this->loadHints($reflection);
         $properties = [];
         $required = [];
 
@@ -371,10 +358,10 @@ class RequestExtractor
 
     // Hints
 
-    private function loadHints(string $requestClass): array
+    private function loadHints(\ReflectionClass $reflection): array
     {
         try {
-            $instance = (new \ReflectionClass($requestClass))->newInstanceWithoutConstructor();
+            $instance = $reflection->newInstanceWithoutConstructor();
             if (! method_exists($instance, 'hints')) {
                 return [];
             }
@@ -497,9 +484,7 @@ class RequestExtractor
         if (isset($schema['$ref'])) {
             $ref = $schema['$ref'];
             if (class_exists($ref) && is_subclass_of($ref, \BackedEnum::class)) {
-                $enumSchema = $this->enumExtractor->extract($ref);
-                $enumRef = $this->registry->register($ref, $enumSchema);
-                $schema['$ref'] = $enumRef;
+                $schema['$ref'] = self::registerEnumRef($ref, $this->registry, $this->enumExtractor);
             }
 
             return $schema;

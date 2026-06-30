@@ -19,21 +19,6 @@ class ResourceExtractor
         private readonly EnumExtractor $enumExtractor,
     ) {}
 
-    protected function typeMapper(): TypeMapper
-    {
-        return $this->typeMapper;
-    }
-
-    protected function registry(): ComponentsRegistry
-    {
-        return $this->registry;
-    }
-
-    protected function enumExtractor(): EnumExtractor
-    {
-        return $this->enumExtractor;
-    }
-
     public function extract(string $resourceClass): array
     {
         if (! class_exists($resourceClass)) {
@@ -75,7 +60,7 @@ class ResourceExtractor
         }
 
         // Strategy 2: public properties with #[ApiProperty]
-        ['properties' => $properties, 'required' => $required] = $this->extractAnnotatedProperties($reflection);
+        ['properties' => $properties, 'required' => $required] = $this->extractAnnotatedProperties($reflection, $this->typeMapper, $this->registry, $this->enumExtractor);
 
         // Secondary loop: auto-document public properties typed as JsonResource subclasses
         foreach ($reflection->getProperties(\ReflectionProperty::IS_PUBLIC) as $prop) {
@@ -129,9 +114,7 @@ class ResourceExtractor
 
             if (class_exists($ref)) {
                 if (is_subclass_of($ref, \BackedEnum::class)) {
-                    $enumSchema = $this->enumExtractor->extract($ref);
-                    $enumRef = $this->registry->register($ref, $enumSchema);
-                    $schema['$ref'] = $enumRef;
+                    $schema['$ref'] = self::registerEnumRef($ref, $this->registry, $this->enumExtractor);
 
                     return $schema;
                 }
