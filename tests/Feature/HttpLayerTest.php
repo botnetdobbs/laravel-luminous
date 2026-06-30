@@ -180,4 +180,77 @@ class HttpLayerTest extends TestCase
         $this->assertSame(['auth', 'throttle:60,1'], $parsed);
         $this->assertCount(2, $parsed);
     }
+
+    public function test_yaml_501_response_has_nosniff_header(): void
+    {
+        $this->app->instance(YamlExporter::class, new class extends YamlExporter
+        {
+            public function isAvailable(): bool
+            {
+                return false;
+            }
+        });
+
+        $response = $this->get('/docs/openapi.yaml');
+
+        $response->assertStatus(501);
+        $response->assertHeader('X-Content-Type-Options', 'nosniff');
+    }
+
+    public function test_json_response_has_cache_control_no_store(): void
+    {
+        $response = $this->get('/docs/openapi.json');
+
+        $response->assertStatus(200);
+        $this->assertStringContainsString('no-store', $response->headers->get('Cache-Control', ''));
+    }
+
+    public function test_yaml_response_has_cache_control_no_store(): void
+    {
+        if (! class_exists(Yaml::class)) {
+            $this->markTestSkipped('symfony/yaml not installed');
+        }
+
+        $response = $this->get('/docs/openapi.yaml');
+
+        $response->assertStatus(200);
+        $this->assertStringContainsString('no-store', $response->headers->get('Cache-Control', ''));
+    }
+
+    public function test_ui_response_has_referrer_policy_header(): void
+    {
+        $response = $this->get('/docs');
+
+        $response->assertStatus(200);
+        $response->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    }
+
+    public function test_csp_style_src_does_not_contain_unsafe_inline(): void
+    {
+        $response = $this->get('/docs');
+
+        $csp = $response->headers->get('Content-Security-Policy');
+        $this->assertStringNotContainsString("'unsafe-inline'", $csp);
+    }
+
+    public function test_csp_contains_base_uri_object_src_form_action(): void
+    {
+        $response = $this->get('/docs');
+
+        $csp = $response->headers->get('Content-Security-Policy');
+        $this->assertStringContainsString("base-uri 'self'", $csp);
+        $this->assertStringContainsString("object-src 'none'", $csp);
+        $this->assertStringContainsString("form-action 'self'", $csp);
+    }
+
+    public function test_cdn_host_outside_allowlist_falls_back_to_default(): void
+    {
+        $this->app['config']->set('luminous.ui.cdn.swagger_ui', 'https://attacker.com/swagger-ui-dist@5.18.2');
+
+        $response = $this->get('/docs');
+
+        $response->assertStatus(200);
+        $this->assertStringNotContainsString('attacker.com', $response->getContent());
+        $this->assertStringContainsString('unpkg.com', $response->getContent());
+    }
 }

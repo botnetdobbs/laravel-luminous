@@ -7,7 +7,7 @@
     <link rel="stylesheet"
         href="{{ $uiConfig['cdn']['swagger_ui'] }}/swagger-ui.css"
         @if(!empty($sri['swagger-ui.css'])) integrity="{{ $sri['swagger-ui.css'] }}" crossorigin="anonymous" @endif />
-    <style>
+    <style nonce="{{ $nonce }}">
         html { box-sizing: border-box; overflow-y: scroll; }
         body { margin: 0; background: #fafafa; }
         .swagger-ui .topbar { display: none; }

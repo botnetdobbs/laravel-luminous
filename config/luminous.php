@@ -192,7 +192,7 @@ return [
     |
     */
     'cache' => [
-        'enabled' => env('LUMINOUS_CACHE', false),
+        'enabled' => env('LUMINOUS_CACHE', true),
         'ttl' => env('LUMINOUS_CACHE_TTL', 3600),
         'key' => env('LUMINOUS_CACHE_KEY', 'luminous:spec'),
         'store' => env('LUMINOUS_CACHE_STORE', null),
@@ -214,7 +214,7 @@ return [
     |
     */
     'ui' => [
-        'persist_authorization' => false,
+        'persist_authorization' => true,
         'display_request_duration' => true,
         'default_models_expand_depth' => 1,
         'syntax_highlight_theme' => 'monokai',

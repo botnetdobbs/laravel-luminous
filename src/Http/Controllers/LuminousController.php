@@ -21,7 +21,9 @@ class LuminousController extends Controller
     {
         return response()
             ->json($this->getSpec())
-            ->header('X-Content-Type-Options', 'nosniff');
+            ->header('X-Content-Type-Options', 'nosniff')
+            ->header('Cache-Control', 'no-store')
+            ->header('Referrer-Policy', 'strict-origin-when-cross-origin');
     }
 
     public function yaml(): Response
@@ -32,6 +34,8 @@ class LuminousController extends Controller
             return response($output, 200, [
                 'Content-Type' => 'application/yaml; charset=utf-8',
                 'X-Content-Type-Options' => 'nosniff',
+                'Cache-Control' => 'no-store',
+                'Referrer-Policy' => 'strict-origin-when-cross-origin',
             ]);
         } catch (\RuntimeException $e) {
             logger()->warning('luminous: YAML export failed', ['error' => $e->getMessage()]);
@@ -39,7 +43,10 @@ class LuminousController extends Controller
             return response(
                 'YAML export is unavailable. Run: composer require symfony/yaml',
                 501,
-                ['Content-Type' => 'text/plain']
+                [
+                    'Content-Type' => 'text/plain',
+                    'X-Content-Type-Options' => 'nosniff',
+                ]
             );
         }
     }
@@ -48,7 +55,10 @@ class LuminousController extends Controller
     {
         $uiConfig = config('luminous.ui');
         $cdnBase = $uiConfig['cdn']['swagger_ui'] ?? '';
-        if (! str_starts_with((string) $cdnBase, 'https://')) {
+
+        $allowedCdnHosts = ['unpkg.com', 'cdn.jsdelivr.net', 'cdnjs.cloudflare.com'];
+        $cdnHost = parse_url((string) $cdnBase, PHP_URL_HOST) ?? '';
+        if (! in_array($cdnHost, $allowedCdnHosts, true)) {
             $uiConfig['cdn']['swagger_ui'] = 'https://unpkg.com/swagger-ui-dist@5.18.2';
             $cdnBase = $uiConfig['cdn']['swagger_ui'];
         }
@@ -67,6 +77,7 @@ class LuminousController extends Controller
             ])
             ->header('X-Frame-Options', 'SAMEORIGIN')
             ->header('X-Content-Type-Options', 'nosniff')
+            ->header('Referrer-Policy', 'strict-origin-when-cross-origin')
             ->header('Content-Security-Policy', $csp);
     }
 
@@ -76,12 +87,24 @@ class LuminousController extends Controller
         $cdnOrigin = isset($parsed['host']) ? (($parsed['scheme'] ?? 'https').'://'.$parsed['host']) : '';
 
         return "default-src 'none'; script-src 'self' {$cdnOrigin} 'nonce-{$nonce}'; ".
-               "style-src 'self' {$cdnOrigin} 'unsafe-inline'; ".
-               "img-src 'self' data:; connect-src 'self'; frame-ancestors 'self'";
+               "style-src 'self' {$cdnOrigin} 'nonce-{$nonce}'; ".
+               "img-src 'self' data:; connect-src 'self'; ".
+               "base-uri 'self'; object-src 'none'; form-action 'self'; ".
+               "frame-ancestors 'self'";
     }
 
     private function getSpec(): array
     {
-        return $this->cache->get() ?? tap($this->generator->generate(), fn ($s) => $this->cache->put($s));
+        if (! config('luminous.cache.enabled')) {
+            return $this->generator->generate();
+        }
+
+        return $this->cache->get() ?? cache()
+            ->store(config('luminous.cache.store'))
+            ->lock('luminous:generating', 30)
+            ->block(10, function () {
+                return $this->cache->get()
+                    ?? tap($this->generator->generate(), fn ($s) => $this->cache->put($s));
+            });
     }
 }
