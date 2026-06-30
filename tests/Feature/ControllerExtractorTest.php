@@ -14,6 +14,8 @@ use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\IgnoredController;
 use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\OrderController;
 use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\PaymentController;
 use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\PlainController;
+use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\TestAttributeController;
+use Illuminate\Support\Facades\Log;
 use Orchestra\Testbench\TestCase;
 
 class ControllerExtractorTest extends TestCase
@@ -251,5 +253,47 @@ class ControllerExtractorTest extends TestCase
 
         $this->assertCount(1, $idParams, 'id must appear exactly once, not duplicated by auto-detection');
         $this->assertSame('uuid', $idParams[0]['schema']['format'] ?? null, 'Explicit format from #[ApiParam] must be preserved');
+    }
+
+    public function test_api_body_file_upload_request_uses_multipart_media_type(): void
+    {
+        $extractor = $this->makeExtractor();
+        $route = new ExtractedRoute(
+            httpMethod: 'post',
+            path: '/avatar',
+            controllerClass: TestAttributeController::class,
+            methodName: 'uploadAvatar',
+            routeName: 'avatar.upload',
+            middlewares: [],
+        );
+
+        $op = $extractor->extract($route);
+
+        $this->assertArrayHasKey('requestBody', $op);
+        $this->assertArrayHasKey('multipart/form-data', $op['requestBody']['content'],
+            'ApiBody with a file-upload request must use multipart/form-data, not application/json');
+        $this->assertArrayNotHasKey('application/json', $op['requestBody']['content']);
+    }
+
+    public function test_api_example_targeting_absent_status_is_skipped_with_warning(): void
+    {
+        Log::spy();
+
+        $extractor = $this->makeExtractor();
+        $route = new ExtractedRoute(
+            httpMethod: 'get',
+            path: '/ghost',
+            controllerClass: TestAttributeController::class,
+            methodName: 'ghostExample',
+            routeName: 'ghost.example',
+            middlewares: [],
+        );
+
+        $op = $extractor->extract($route);
+
+        $this->assertArrayNotHasKey('999', $op['responses'],
+            'example targeting absent status 999 must not create a response entry');
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn ($msg) => str_contains((string) $msg, 'targets response status 999'));
     }
 }

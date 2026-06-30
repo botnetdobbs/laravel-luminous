@@ -134,7 +134,12 @@ class RouteExtractor
                     return true;
                 }
             }
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            logger()->warning(
+                "Luminous: could not reflect [{$class}::{$method}]; route excluded from spec. "
+                    .get_class($e).': '.$e->getMessage()
+            );
+
             return true;
         }
 

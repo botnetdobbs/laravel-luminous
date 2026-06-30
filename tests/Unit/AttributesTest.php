@@ -126,12 +126,11 @@ class AttributesTest extends TestCase
 
     public function test_api_param_constructor_round_trip(): void
     {
-        $param = new ApiParam('id', 'Resource UUID', 'string', 'uuid', true, '550e8400');
+        $param = new ApiParam('id', 'Resource UUID', 'string', 'uuid', '550e8400');
 
         $this->assertSame('id', $param->name);
         $this->assertSame('string', $param->type);
         $this->assertSame('uuid', $param->format);
-        $this->assertTrue($param->required);
         $this->assertSame('550e8400', $param->example);
     }
 

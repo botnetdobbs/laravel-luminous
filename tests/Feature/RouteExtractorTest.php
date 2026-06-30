@@ -7,6 +7,7 @@ use Botnetdobbs\Luminous\Extractors\RouteExtractor;
 use Botnetdobbs\Luminous\LuminousServiceProvider;
 use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\InvokeController;
 use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\TestAttributeController;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Orchestra\Testbench\TestCase;
 
@@ -136,5 +137,20 @@ class RouteExtractorTest extends TestCase
 
         $this->assertContains('ping', $names);
         $this->assertNotContains('pong', $names);
+    }
+
+    public function test_ignore_attribute_reflection_failure_logs_warning_and_excludes_route(): void
+    {
+        Log::spy();
+
+        $extractor = $this->makeExtractor(['exclude_routes' => [], 'include_routes' => []]);
+        $method = new \ReflectionMethod($extractor, 'hasIgnoreAttribute');
+
+        $result = $method->invoke($extractor, 'NonExistent\ClassName', 'index');
+
+        $this->assertTrue($result, 'reflection failure must return true to exclude the route');
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->withArgs(fn ($msg) => str_contains((string) $msg, 'could not reflect'));
     }
 }

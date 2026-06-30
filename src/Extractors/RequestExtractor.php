@@ -92,13 +92,16 @@ class RequestExtractor
 
         // Strategy 1: #[ApiShape] static schema() method
         if (! empty($reflection->getAttributes(ApiShape::class)) && $reflection->hasMethod('schema')) {
-            try {
-                $shape = $requestClass::schema();
-                if ($shape instanceof Shape) {
-                    return $this->resolveShapeEnumRefs($shape->toArray());
+            $schemaMethod = $reflection->getMethod('schema');
+            if ($schemaMethod->isPublic() && $schemaMethod->isStatic()) {
+                try {
+                    $shape = $requestClass::schema();
+                    if ($shape instanceof Shape) {
+                        return $this->resolveShapeEnumRefs($shape->toArray());
+                    }
+                } catch (\Throwable $e) {
+                    logger()->warning("Luminous: schema() on [{$requestClass}] threw: {$e->getMessage()}");
                 }
-            } catch (\Throwable $e) {
-                logger()->warning("Luminous: schema() on [{$requestClass}] threw: {$e->getMessage()}");
             }
         }
 

@@ -10,7 +10,6 @@ final class ApiParam
         public readonly string $description = '',
         public readonly string $type = 'string',
         public readonly string $format = '',
-        public readonly bool $required = true,
         public readonly mixed $example = null,
     ) {}
 }

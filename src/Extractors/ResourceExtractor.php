@@ -61,13 +61,16 @@ class ResourceExtractor
 
         // Strategy 1: #[ApiShape] static schema() method
         if (! empty($reflection->getAttributes(ApiShape::class)) && $reflection->hasMethod('schema')) {
-            try {
-                $shape = $resourceClass::schema();
-                if ($shape instanceof Shape) {
-                    return $this->resolveShapeRefs($shape->toArray());
+            $schemaMethod = $reflection->getMethod('schema');
+            if ($schemaMethod->isPublic() && $schemaMethod->isStatic()) {
+                try {
+                    $shape = $resourceClass::schema();
+                    if ($shape instanceof Shape) {
+                        return $this->resolveShapeRefs($shape->toArray());
+                    }
+                } catch (\Throwable $e) {
+                    logger()->warning("Luminous: schema() on [{$resourceClass}] threw: {$e->getMessage()}");
                 }
-            } catch (\Throwable $e) {
-                logger()->warning("Luminous: schema() on [{$resourceClass}] threw: {$e->getMessage()}");
             }
         }
 

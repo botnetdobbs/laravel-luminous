@@ -44,10 +44,11 @@ class OpenApiGenerator
                 unset($operation['x-luminous-tags']);
                 $paths[$route->path][$route->httpMethod] = $operation;
             } catch (\Throwable $e) {
-                logger()->warning('Luminous: failed to extract route [{method} {path}]: {type}', [
+                logger()->warning('Luminous: failed to extract route [{method} {path}]: {type} {message}', [
                     'method' => $route->httpMethod,
                     'path' => $route->path,
                     'type' => get_class($e),
+                    'message' => $e->getMessage(),
                 ]);
             }
         }

@@ -14,6 +14,7 @@ use Botnetdobbs\Luminous\Tests\Fixtures\Requests\ConfirmedRequest;
 use Botnetdobbs\Luminous\Tests\Fixtures\Requests\CreatePaymentRequest;
 use Botnetdobbs\Luminous\Tests\Fixtures\Requests\FileUploadRequest;
 use Botnetdobbs\Luminous\Tests\Fixtures\Requests\HintsRequest;
+use Botnetdobbs\Luminous\Tests\Fixtures\Requests\NonPublicSchemaRequest;
 use Botnetdobbs\Luminous\Tests\Fixtures\Requests\ShapeRequest;
 use Botnetdobbs\Luminous\Tests\Fixtures\Requests\ThrowingRequest;
 use Botnetdobbs\Luminous\Tests\Fixtures\Requests\UnionTypeRequest;
@@ -507,5 +508,64 @@ class SchemaExtractorsTest extends TestCase
 
         $schema = $registry->all()['PaymentResource'];
         $this->assertNotContains('settled_at', $schema['required'] ?? []);
+    }
+
+    public function test_three_class_same_parent_base_collision_produces_distinct_refs(): void
+    {
+        $registry = $this->makeRegistry();
+
+        $ref1 = $registry->register('App\Payment', ['type' => 'object', 'description' => 'p1']);
+        $ref2 = $registry->register('App\Order\Payment', ['type' => 'object', 'description' => 'p2']);
+        $ref3 = $registry->register('App\Refund\Order\Payment', ['type' => 'object', 'description' => 'p3']);
+
+        $this->assertNotSame($ref1, $ref2, 'first and second ref must differ');
+        $this->assertNotSame($ref1, $ref3, 'first and third ref must differ');
+        $this->assertNotSame($ref2, $ref3, 'second and third ref must differ');
+
+        $all = $registry->all();
+        $this->assertCount(3, $all, 'all three schemas must be stored separately');
+
+        $name3 = str_replace('#/components/schemas/', '', $ref3);
+        $this->assertSame('p3', $all[$name3]['description'] ?? null,
+            'third schema must not overwrite the second due to name collision');
+    }
+
+    public function test_update_schema_overwrites_registered_class_schema(): void
+    {
+        $registry = $this->makeRegistry();
+        $registry->register('App\Foo', ['type' => 'object', 'description' => 'original']);
+
+        $registry->updateSchema('App\Foo', ['type' => 'object', 'description' => 'updated']);
+
+        $all = $registry->all();
+        $name = array_key_first($all);
+        $this->assertSame('updated', $all[$name]['description']);
+    }
+
+    public function test_update_schema_is_noop_for_unregistered_class(): void
+    {
+        $registry = $this->makeRegistry();
+        $registry->register('App\Known', ['type' => 'object']);
+
+        $registry->updateSchema('App\Unknown', ['type' => 'string']);
+
+        $this->assertCount(1, $registry->all(), 'unregistered class update must not add to the registry');
+    }
+
+    public function test_api_shape_falls_through_when_schema_method_is_not_public(): void
+    {
+        $registry = $this->makeRegistry();
+        $extractor = $this->makeRequestExtractor($registry);
+
+        $result = $extractor->extract(NonPublicSchemaRequest::class);
+
+        $this->assertArrayHasKey('$ref', $result,
+            'extractor must return a ref even when schema() is protected');
+        $this->assertTrue($registry->isRegistered(NonPublicSchemaRequest::class));
+
+        $name = str_replace('#/components/schemas/', '', $result['$ref']);
+        $schema = $registry->all()[$name] ?? null;
+        $this->assertSame('object', $schema['type'] ?? null,
+            'fallback to rules() must produce an object schema');
     }
 }

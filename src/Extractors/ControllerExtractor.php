@@ -269,10 +269,13 @@ class ControllerExtractor
         if (! empty($bodyAttrs)) {
             $body = $bodyAttrs[0]->newInstance();
             $schema = $this->requestExtractor->extract($body->request);
+            $mediaType = $body->mediaType !== 'application/json'
+                ? $body->mediaType
+                : $this->requestExtractor->mediaType($body->request);
             $requestBody = [
                 'required' => $body->required,
                 'content' => [
-                    $body->mediaType => ['schema' => $schema],
+                    $mediaType => ['schema' => $schema],
                 ],
             ];
             if ($body->description !== '') {
@@ -368,19 +371,25 @@ class ControllerExtractor
         foreach ($exampleInstances as $example) {
             if ($example->type === 'response') {
                 $status = (string) $example->status;
-                if (isset($responses[$status])) {
-                    if (! isset($responses[$status]['content'][$example->mediaType]['schema'])) {
-                        logger()->warning(
-                            "Luminous: ApiExample '{$example->name}' targets response {$status} which has no schema. Example was not applied."
-                        );
+                if (! isset($responses[$status])) {
+                    logger()->warning(
+                        "Luminous: ApiExample '{$example->name}' targets response status {$status} "
+                            ."which is not declared on {$methodRef->class}::{$methodRef->name}. Example was not applied."
+                    );
 
-                        continue;
-                    }
-                    $responses[$status]['content'][$example->mediaType]['examples'][$example->name] = [
-                        'summary' => $example->summary,
-                        'value' => $example->value,
-                    ];
+                    continue;
                 }
+                if (! isset($responses[$status]['content'][$example->mediaType]['schema'])) {
+                    logger()->warning(
+                        "Luminous: ApiExample '{$example->name}' targets response {$status} which has no schema. Example was not applied."
+                    );
+
+                    continue;
+                }
+                $responses[$status]['content'][$example->mediaType]['examples'][$example->name] = [
+                    'summary' => $example->summary,
+                    'value' => $example->value,
+                ];
             }
         }
 

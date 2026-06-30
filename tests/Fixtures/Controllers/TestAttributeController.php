@@ -2,6 +2,7 @@
 
 namespace Botnetdobbs\Luminous\Tests\Fixtures\Controllers;
 
+use Botnetdobbs\Luminous\Attributes\ApiBody;
 use Botnetdobbs\Luminous\Attributes\ApiDeprecated;
 use Botnetdobbs\Luminous\Attributes\ApiExample;
 use Botnetdobbs\Luminous\Attributes\ApiHeader;
@@ -12,6 +13,7 @@ use Botnetdobbs\Luminous\Attributes\ApiQuery;
 use Botnetdobbs\Luminous\Attributes\ApiResponse;
 use Botnetdobbs\Luminous\Attributes\ApiSecurity;
 use Botnetdobbs\Luminous\Attributes\ApiTag;
+use Botnetdobbs\Luminous\Tests\Fixtures\Requests\FileUploadRequest;
 
 #[ApiTag('Test')]
 #[ApiSecurity('bearerAuth')]
@@ -38,4 +40,12 @@ class TestAttributeController
 
     #[ApiIgnore]
     public function internalMethod(): void {}
+
+    #[ApiBody(FileUploadRequest::class)]
+    #[ApiResponse(200, description: 'Uploaded')]
+    public function uploadAvatar(): void {}
+
+    #[ApiResponse(200, description: 'OK')]
+    #[ApiExample('absent-status', 'targets absent 999', [], type: 'response', status: 999)]
+    public function ghostExample(): void {}
 }

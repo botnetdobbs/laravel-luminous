@@ -19,6 +19,11 @@ class ExportCommand extends Command
 
     public function handle(OpenApiGenerator $generator, CacheManager $cache, YamlExporter $yaml): int
     {
+        $outputPath = $this->option('output');
+        if ($outputPath && ! $this->validateOutputPath($outputPath)) {
+            return self::FAILURE;
+        }
+
         $spec = ($this->option('no-cache') ? null : $cache->get()) ?? $generator->generate();
         $format = strtolower($this->option('format'));
 
@@ -50,11 +55,7 @@ class ExportCommand extends Command
             }
         }
 
-        $outputPath = $this->option('output');
         if ($outputPath) {
-            if (! $this->validateOutputPath($outputPath)) {
-                return self::FAILURE;
-            }
             $resolvedPath = realpath(dirname($outputPath)).DIRECTORY_SEPARATOR.basename($outputPath);
             if (file_put_contents($resolvedPath, $output, LOCK_EX) === false) {
                 $this->error("Could not write to {$outputPath}");

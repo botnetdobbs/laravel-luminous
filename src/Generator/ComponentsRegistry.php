@@ -79,10 +79,14 @@ class ComponentsRegistry
             $parent = array_pop($parts);
 
             if ($parent) {
-                return "{$parent}_{$base}";
+                $candidate = "{$parent}_{$base}";
+                if (! isset($this->schemas[$candidate])
+                    || ($this->classIndex[$class] ?? null) === $candidate) {
+                    return $candidate;
+                }
             }
 
-            // No parent namespace available. Use numeric suffix to avoid silent collision
+            // No parent available, or parent-prefixed name is also taken. Use numeric suffix.
             $i = 2;
             while (isset($this->schemas["{$base}_{$i}"])) {
                 $i++;
