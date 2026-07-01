@@ -7,9 +7,10 @@ use Botnetdobbs\Luminous\Extractors\EnumExtractor;
 use Botnetdobbs\Luminous\Extractors\ExtractedRoute;
 use Botnetdobbs\Luminous\Extractors\RequestExtractor;
 use Botnetdobbs\Luminous\Extractors\ResourceExtractor;
+use Botnetdobbs\Luminous\Extractors\ResponseBuilder;
+use Botnetdobbs\Luminous\Extractors\RulesSchemaBuilder;
 use Botnetdobbs\Luminous\Generator\ComponentsRegistry;
 use Botnetdobbs\Luminous\Generator\TagRegistry;
-use Botnetdobbs\Luminous\LuminousServiceProvider;
 use Botnetdobbs\Luminous\Support\TypeMapper;
 use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\DanglingTagController;
 use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\IgnoredController;
@@ -19,36 +20,34 @@ use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\PlainController;
 use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\TestAttributeController;
 use Botnetdobbs\Luminous\Tests\Fixtures\LedgerEntry;
 use Botnetdobbs\Luminous\Tests\Fixtures\PaymentEvent;
+use Botnetdobbs\Luminous\Tests\LuminousTestCase;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Log;
-use Orchestra\Testbench\TestCase;
 
-class ControllerExtractorTest extends TestCase
+class ControllerExtractorTest extends LuminousTestCase
 {
-    protected function getPackageProviders($app): array
-    {
-        return [LuminousServiceProvider::class];
-    }
-
     private function makeExtractor(array $config = [], ?TagRegistry $tagRegistry = null): ControllerExtractor
     {
         $registry = new ComponentsRegistry;
         $tagRegistry ??= new TagRegistry;
         $enumExtractor = new EnumExtractor;
         $typeMapper = new TypeMapper($enumExtractor);
-        $requestEx = new RequestExtractor($typeMapper, $registry, $enumExtractor);
+        $rulesBuilder = new RulesSchemaBuilder($typeMapper, $registry, $enumExtractor);
+        $requestEx = new RequestExtractor($typeMapper, $registry, $enumExtractor, $rulesBuilder);
+        $mergedConfig = array_merge([
+            'wrap_responses' => false,
+            'response_wrapper_key' => 'data',
+            'include_pagination_schema' => true,
+            'default_security' => [],
+        ], $config);
         $resourceEx = new ResourceExtractor($typeMapper, $registry, $enumExtractor);
+        $responseBuilder = new ResponseBuilder($resourceEx, $mergedConfig);
 
         return new ControllerExtractor(
             requestExtractor: $requestEx,
-            resourceExtractor: $resourceEx,
             tagRegistry: $tagRegistry,
-            config: array_merge([
-                'wrap_responses' => false,
-                'response_wrapper_key' => 'data',
-                'include_pagination_schema' => true,
-                'default_security' => [],
-            ], $config),
+            responseBuilder: $responseBuilder,
+            config: $mergedConfig,
         );
     }
 

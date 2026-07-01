@@ -20,4 +20,14 @@ final class ApiExample
             );
         }
     }
+
+    public function toExampleObject(): array
+    {
+        $obj = ['summary' => $this->summary, 'value' => $this->value];
+        if ($this->description !== '') {
+            $obj['description'] = $this->description;
+        }
+
+        return $obj;
+    }
 }

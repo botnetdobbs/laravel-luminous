@@ -2,19 +2,13 @@
 
 namespace Botnetdobbs\Luminous\Tests\Feature;
 
-use Botnetdobbs\Luminous\LuminousServiceProvider;
 use Botnetdobbs\Luminous\Support\CacheManager;
 use Botnetdobbs\Luminous\Support\YamlExporter;
-use Orchestra\Testbench\TestCase;
+use Botnetdobbs\Luminous\Tests\LuminousTestCase;
 use Symfony\Component\Yaml\Yaml;
 
-class HttpLayerTest extends TestCase
+class HttpLayerTest extends LuminousTestCase
 {
-    protected function getPackageProviders($app): array
-    {
-        return [LuminousServiceProvider::class];
-    }
-
     protected function defineEnvironment($app): void
     {
         $app['config']->set('luminous.enabled', true);

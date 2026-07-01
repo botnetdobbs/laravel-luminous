@@ -8,6 +8,11 @@ class CacheManager
 {
     public function __construct(private readonly array $config) {}
 
+    private function isEnabled(): bool
+    {
+        return (bool) $this->config['cache']['enabled'];
+    }
+
     private function store(): Repository
     {
         return cache()->store($this->config['cache']['store']);
@@ -15,7 +20,7 @@ class CacheManager
 
     public function get(): ?array
     {
-        if (! $this->config['cache']['enabled']) {
+        if (! $this->isEnabled()) {
             return null;
         }
 
@@ -24,7 +29,7 @@ class CacheManager
 
     public function put(array $spec): void
     {
-        if (! $this->config['cache']['enabled']) {
+        if (! $this->isEnabled()) {
             return;
         }
 
@@ -33,7 +38,7 @@ class CacheManager
 
     public function flush(): void
     {
-        if (! $this->config['cache']['enabled']) {
+        if (! $this->isEnabled()) {
             return;
         }
 

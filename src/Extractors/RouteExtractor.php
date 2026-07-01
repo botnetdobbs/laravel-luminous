@@ -84,12 +84,9 @@ class RouteExtractor
         $uri = $route->uri();
 
         foreach ($this->config['exclude_routes'] ?? [] as $pattern) {
-            if (str_ends_with($pattern, '.*')) {
-                // Use substr to strip exactly '.*'. rtrim would strip a character set, not a suffix
-                $prefix = substr($pattern, 0, -2);
-                if (str_starts_with($name, $prefix.'.')) {
-                    return true;
-                }
+            $prefix = $this->wildcardPrefix($pattern);
+            if ($prefix !== null && str_starts_with($name, $prefix.'.')) {
+                return true;
             }
 
             if (fnmatch($pattern, $uri)) {
@@ -104,8 +101,8 @@ class RouteExtractor
 
         if (! empty($includes)) {
             foreach ($includes as $pattern) {
-                if (str_ends_with($pattern, '.*')) {
-                    $prefix = substr($pattern, 0, -2);
+                $prefix = $this->wildcardPrefix($pattern);
+                if ($prefix !== null) {
                     if (str_starts_with($name, $prefix.'.') || $name === $prefix) {
                         return false;
                     }
@@ -118,6 +115,16 @@ class RouteExtractor
         }
 
         return false;
+    }
+
+    private function wildcardPrefix(string $pattern): ?string
+    {
+        if (! str_ends_with($pattern, '.*')) {
+            return null;
+        }
+
+        // Use substr to strip exactly '.*'. rtrim would strip a character set, not a suffix.
+        return substr($pattern, 0, -2);
     }
 
     private function hasIgnoreAttribute(string $class, string $method): bool

@@ -2,10 +2,8 @@
 
 namespace Botnetdobbs\Luminous\Extractors;
 
-use Botnetdobbs\Luminous\Attributes\ApiShape;
 use Botnetdobbs\Luminous\Extractors\Concerns\ExtractsAnnotatedProperties;
 use Botnetdobbs\Luminous\Generator\ComponentsRegistry;
-use Botnetdobbs\Luminous\Support\Shape;
 use Botnetdobbs\Luminous\Support\TypeMapper;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -50,18 +48,9 @@ class ResourceExtractor
         $reflection = new \ReflectionClass($resourceClass);
 
         // Strategy 1: #[ApiShape] static schema() method
-        if (! empty($reflection->getAttributes(ApiShape::class)) && $reflection->hasMethod('schema')) {
-            $schemaMethod = $reflection->getMethod('schema');
-            if ($schemaMethod->isPublic() && $schemaMethod->isStatic()) {
-                try {
-                    $shape = $resourceClass::schema();
-                    if ($shape instanceof Shape) {
-                        return $this->resolveShapeRefs($shape->toArray());
-                    }
-                } catch (\Throwable $e) {
-                    logger()->warning("Luminous: schema() on [{$resourceClass}] threw: {$e->getMessage()}");
-                }
-            }
+        $shapeResult = $this->tryShapeStrategy($resourceClass, $reflection, fn ($s) => $this->resolveShapeRefs($s));
+        if ($shapeResult !== null) {
+            return $shapeResult;
         }
 
         // Strategy 2: public properties with #[ApiProperty]
@@ -117,7 +106,7 @@ class ResourceExtractor
         if (isset($schema['$ref'])) {
             $ref = $schema['$ref'];
 
-            if (class_exists($ref)) {
+            if (is_string($ref) && class_exists($ref)) {
                 if (is_subclass_of($ref, \BackedEnum::class)) {
                     $schema['$ref'] = self::registerEnumRef($ref, $this->registry, $this->enumExtractor);
 

@@ -171,21 +171,19 @@ class TypeMapper
             }
 
             if (str_starts_with($rule, 'min:')) {
-                $val = (int) substr($rule, 4);
-                $schema[$isNumeric ? 'minimum' : ($isArray ? 'minItems' : 'minLength')] = $val;
+                $schema[$this->minKey($isNumeric, $isArray)] = (int) substr($rule, 4);
 
                 continue;
             }
             if (str_starts_with($rule, 'max:')) {
-                $val = (int) substr($rule, 4);
-                $schema[$isNumeric ? 'maximum' : ($isArray ? 'maxItems' : 'maxLength')] = $val;
+                $schema[$this->maxKey($isNumeric, $isArray)] = (int) substr($rule, 4);
 
                 continue;
             }
             if (str_starts_with($rule, 'size:')) {
                 $val = (int) substr($rule, 5);
-                $schema[$isNumeric ? 'minimum' : ($isArray ? 'minItems' : 'minLength')] = $val;
-                $schema[$isNumeric ? 'maximum' : ($isArray ? 'maxItems' : 'maxLength')] = $val;
+                $schema[$this->minKey($isNumeric, $isArray)] = $val;
+                $schema[$this->maxKey($isNumeric, $isArray)] = $val;
 
                 continue;
             }
@@ -197,8 +195,8 @@ class TypeMapper
                     continue;
                 }
                 [$min, $max] = $parts;
-                $schema[$isNumeric ? 'minimum' : ($isArray ? 'minItems' : 'minLength')] = (int) $min;
-                $schema[$isNumeric ? 'maximum' : ($isArray ? 'maxItems' : 'maxLength')] = (int) $max;
+                $schema[$this->minKey($isNumeric, $isArray)] = (int) $min;
+                $schema[$this->maxKey($isNumeric, $isArray)] = (int) $max;
 
                 continue;
             }
@@ -298,6 +296,16 @@ class TypeMapper
         }
 
         return collect($schema)->filter(fn ($v) => $v !== [] && $v !== '')->all();
+    }
+
+    private function minKey(bool $isNumeric, bool $isArray): string
+    {
+        return $isNumeric ? 'minimum' : ($isArray ? 'minItems' : 'minLength');
+    }
+
+    private function maxKey(bool $isNumeric, bool $isArray): string
+    {
+        return $isNumeric ? 'maximum' : ($isArray ? 'maxItems' : 'maxLength');
     }
 
     private function warn(string $message): void

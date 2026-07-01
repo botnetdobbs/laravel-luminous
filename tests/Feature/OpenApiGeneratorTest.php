@@ -6,26 +6,22 @@ use Botnetdobbs\Luminous\Extractors\ControllerExtractor;
 use Botnetdobbs\Luminous\Extractors\EnumExtractor;
 use Botnetdobbs\Luminous\Extractors\RequestExtractor;
 use Botnetdobbs\Luminous\Extractors\ResourceExtractor;
+use Botnetdobbs\Luminous\Extractors\ResponseBuilder;
 use Botnetdobbs\Luminous\Extractors\RouteExtractor;
+use Botnetdobbs\Luminous\Extractors\RulesSchemaBuilder;
 use Botnetdobbs\Luminous\Generator\ComponentsRegistry;
 use Botnetdobbs\Luminous\Generator\OpenApiGenerator;
 use Botnetdobbs\Luminous\Generator\TagRegistry;
-use Botnetdobbs\Luminous\LuminousServiceProvider;
 use Botnetdobbs\Luminous\Support\TypeMapper;
 use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\DanglingTagController;
 use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\PaymentController;
+use Botnetdobbs\Luminous\Tests\LuminousTestCase;
 use Illuminate\Events\Dispatcher;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Log;
-use Orchestra\Testbench\TestCase;
 
-class OpenApiGeneratorTest extends TestCase
+class OpenApiGeneratorTest extends LuminousTestCase
 {
-    protected function getPackageProviders($app): array
-    {
-        return [LuminousServiceProvider::class];
-    }
-
     protected function defineRoutes($router): void
     {
         $router->prefix('v1')->group(function () use ($router) {
@@ -47,16 +43,18 @@ class OpenApiGeneratorTest extends TestCase
         ]);
     }
 
-    private function makeGenerator(?ComponentsRegistry $registry = null): OpenApiGenerator
+    protected function makeGenerator(?ComponentsRegistry $registry = null): OpenApiGenerator
     {
         $config = config('luminous');
         $registry ??= new ComponentsRegistry;
         $tagRegistry = new TagRegistry;
         $enumEx = new EnumExtractor;
         $typeMapper = new TypeMapper($enumEx);
-        $requestEx = new RequestExtractor($typeMapper, $registry, $enumEx);
+        $rulesBuilder = new RulesSchemaBuilder($typeMapper, $registry, $enumEx);
+        $requestEx = new RequestExtractor($typeMapper, $registry, $enumEx, $rulesBuilder);
         $resourceEx = new ResourceExtractor($typeMapper, $registry, $enumEx);
-        $controllerEx = new ControllerExtractor($requestEx, $resourceEx, $tagRegistry, $config);
+        $responseBuilder = new ResponseBuilder($resourceEx, $config);
+        $controllerEx = new ControllerExtractor($requestEx, $tagRegistry, $responseBuilder, $config);
         $routeEx = new RouteExtractor($config, $this->app['router']);
 
         return new OpenApiGenerator(
@@ -202,9 +200,11 @@ class OpenApiGeneratorTest extends TestCase
         $tagRegistry = new TagRegistry;
         $enumEx = new EnumExtractor;
         $typeMapper = new TypeMapper($enumEx);
-        $requestEx = new RequestExtractor($typeMapper, $registry, $enumEx);
+        $rulesBuilder = new RulesSchemaBuilder($typeMapper, $registry, $enumEx);
+        $requestEx = new RequestExtractor($typeMapper, $registry, $enumEx, $rulesBuilder);
         $resourceEx = new ResourceExtractor($typeMapper, $registry, $enumEx);
-        $controllerEx = new ControllerExtractor($requestEx, $resourceEx, $tagRegistry, $config);
+        $responseBuilder = new ResponseBuilder($resourceEx, $config);
+        $controllerEx = new ControllerExtractor($requestEx, $tagRegistry, $responseBuilder, $config);
         $routeEx = new RouteExtractor($config, $emptyRouter);
         $generator = new OpenApiGenerator($config, $routeEx, $controllerEx, $registry, $tagRegistry);
 

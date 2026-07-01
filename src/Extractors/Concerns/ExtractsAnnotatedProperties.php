@@ -5,8 +5,10 @@ namespace Botnetdobbs\Luminous\Extractors\Concerns;
 use Botnetdobbs\Luminous\Attributes\ApiIgnore;
 use Botnetdobbs\Luminous\Attributes\ApiItems;
 use Botnetdobbs\Luminous\Attributes\ApiProperty;
+use Botnetdobbs\Luminous\Attributes\ApiShape;
 use Botnetdobbs\Luminous\Extractors\EnumExtractor;
 use Botnetdobbs\Luminous\Generator\ComponentsRegistry;
+use Botnetdobbs\Luminous\Support\Shape;
 use Botnetdobbs\Luminous\Support\TypeMapper;
 
 trait ExtractsAnnotatedProperties
@@ -120,6 +122,29 @@ trait ExtractsAnnotatedProperties
         }
 
         return compact('properties', 'required');
+    }
+
+    protected function tryShapeStrategy(string $class, \ReflectionClass $reflection, callable $resolver): ?array
+    {
+        if (empty($reflection->getAttributes(ApiShape::class)) || ! $reflection->hasMethod('schema')) {
+            return null;
+        }
+
+        $schemaMethod = $reflection->getMethod('schema');
+        if (! $schemaMethod->isPublic() || ! $schemaMethod->isStatic()) {
+            return null;
+        }
+
+        try {
+            $shape = $class::schema();
+            if ($shape instanceof Shape) {
+                return $resolver($shape->toArray());
+            }
+        } catch (\Throwable $e) {
+            logger()->warning("Luminous: schema() on [{$class}] threw: {$e->getMessage()}");
+        }
+
+        return null;
     }
 
     private static function registerEnumRef(

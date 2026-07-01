@@ -4,20 +4,14 @@ namespace Botnetdobbs\Luminous\Tests\Feature;
 
 use Botnetdobbs\Luminous\Extractors\ExtractedRoute;
 use Botnetdobbs\Luminous\Extractors\RouteExtractor;
-use Botnetdobbs\Luminous\LuminousServiceProvider;
 use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\InvokeController;
 use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\TestAttributeController;
+use Botnetdobbs\Luminous\Tests\LuminousTestCase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
-use Orchestra\Testbench\TestCase;
 
-class RouteExtractorTest extends TestCase
+class RouteExtractorTest extends LuminousTestCase
 {
-    protected function getPackageProviders($app): array
-    {
-        return [LuminousServiceProvider::class];
-    }
-
     private function makeExtractor(array $config = []): RouteExtractor
     {
         return new RouteExtractor(array_merge([

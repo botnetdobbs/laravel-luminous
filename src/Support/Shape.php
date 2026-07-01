@@ -130,17 +130,22 @@ final class Shape
 
     public static function oneOf(array $shapes): self
     {
-        return new self(['oneOf' => array_map(fn ($s) => $s instanceof self ? $s->toArray() : $s, $shapes)]);
+        return new self(['oneOf' => self::normaliseShapes($shapes)]);
     }
 
     public static function anyOf(array $shapes): self
     {
-        return new self(['anyOf' => array_map(fn ($s) => $s instanceof self ? $s->toArray() : $s, $shapes)]);
+        return new self(['anyOf' => self::normaliseShapes($shapes)]);
     }
 
     public static function allOf(array $shapes): self
     {
-        return new self(['allOf' => array_map(fn ($s) => $s instanceof self ? $s->toArray() : $s, $shapes)]);
+        return new self(['allOf' => self::normaliseShapes($shapes)]);
+    }
+
+    private static function normaliseShapes(array $shapes): array
+    {
+        return array_map(fn ($s) => $s instanceof self ? $s->toArray() : $s, $shapes);
     }
 
     // Chainable modifiers. All return a clone (immutable)

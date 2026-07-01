@@ -2,17 +2,11 @@
 
 namespace Botnetdobbs\Luminous\Tests\Feature;
 
-use Botnetdobbs\Luminous\LuminousServiceProvider;
 use Botnetdobbs\Luminous\Support\CacheManager;
-use Orchestra\Testbench\TestCase;
+use Botnetdobbs\Luminous\Tests\LuminousTestCase;
 
-class CacheManagerTest extends TestCase
+class CacheManagerTest extends LuminousTestCase
 {
-    protected function getPackageProviders($app): array
-    {
-        return [LuminousServiceProvider::class];
-    }
-
     private function makeManager(array $cacheConfig): CacheManager
     {
         return new CacheManager(['cache' => $cacheConfig]);

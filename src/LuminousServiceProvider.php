@@ -8,7 +8,9 @@ use Botnetdobbs\Luminous\Extractors\ControllerExtractor;
 use Botnetdobbs\Luminous\Extractors\EnumExtractor;
 use Botnetdobbs\Luminous\Extractors\RequestExtractor;
 use Botnetdobbs\Luminous\Extractors\ResourceExtractor;
+use Botnetdobbs\Luminous\Extractors\ResponseBuilder;
 use Botnetdobbs\Luminous\Extractors\RouteExtractor;
+use Botnetdobbs\Luminous\Extractors\RulesSchemaBuilder;
 use Botnetdobbs\Luminous\Generator\ComponentsRegistry;
 use Botnetdobbs\Luminous\Generator\OpenApiGenerator;
 use Botnetdobbs\Luminous\Generator\TagRegistry;
@@ -36,16 +38,18 @@ class LuminousServiceProvider extends ServiceProvider
 
             $enumExtractor = new EnumExtractor;
             $typeMapper = new TypeMapper($enumExtractor);
-            $requestExtractor = new RequestExtractor($typeMapper, $registry, $enumExtractor);
+            $rulesBuilder = new RulesSchemaBuilder($typeMapper, $registry, $enumExtractor);
+            $requestExtractor = new RequestExtractor($typeMapper, $registry, $enumExtractor, $rulesBuilder);
             $resourceExtractor = new ResourceExtractor($typeMapper, $registry, $enumExtractor);
+            $responseBuilder = new ResponseBuilder($resourceExtractor, $config);
 
             return new OpenApiGenerator(
                 config: $config,
                 routeExtractor: $routeExtractor,
                 controllerExtractor: new ControllerExtractor(
                     requestExtractor: $requestExtractor,
-                    resourceExtractor: $resourceExtractor,
                     tagRegistry: $tagRegistry,
+                    responseBuilder: $responseBuilder,
                     config: $config,
                 ),
                 registry: $registry,

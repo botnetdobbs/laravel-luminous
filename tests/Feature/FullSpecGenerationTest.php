@@ -2,26 +2,11 @@
 
 namespace Botnetdobbs\Luminous\Tests\Feature;
 
-use Botnetdobbs\Luminous\Extractors\ControllerExtractor;
-use Botnetdobbs\Luminous\Extractors\EnumExtractor;
-use Botnetdobbs\Luminous\Extractors\RequestExtractor;
-use Botnetdobbs\Luminous\Extractors\ResourceExtractor;
-use Botnetdobbs\Luminous\Extractors\RouteExtractor;
-use Botnetdobbs\Luminous\Generator\ComponentsRegistry;
-use Botnetdobbs\Luminous\Generator\OpenApiGenerator;
-use Botnetdobbs\Luminous\Generator\TagRegistry;
-use Botnetdobbs\Luminous\LuminousServiceProvider;
-use Botnetdobbs\Luminous\Support\TypeMapper;
 use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\PaymentController;
-use Orchestra\Testbench\TestCase;
+use Botnetdobbs\Luminous\Tests\LuminousTestCase;
 
-class FullSpecGenerationTest extends TestCase
+class FullSpecGenerationTest extends LuminousTestCase
 {
-    protected function getPackageProviders($app): array
-    {
-        return [LuminousServiceProvider::class];
-    }
-
     protected function defineEnvironment($app): void
     {
         $app['config']->set('luminous.enabled', true);
@@ -38,27 +23,6 @@ class FullSpecGenerationTest extends TestCase
             $router->get('/payments/{id}/status', [PaymentController::class, 'publicStatus'])->name('payment.publicStatus');
             $router->get('/payments/internal-dump', [PaymentController::class, 'internalDump'])->name('payment.internal');
         });
-    }
-
-    private function makeGenerator(): OpenApiGenerator
-    {
-        $config = config('luminous');
-        $registry = new ComponentsRegistry;
-        $enumEx = new EnumExtractor;
-        $typeMapper = new TypeMapper($enumEx);
-        $requestEx = new RequestExtractor($typeMapper, $registry, $enumEx);
-        $resourceEx = new ResourceExtractor($typeMapper, $registry, $enumEx);
-        $tagRegistry = new TagRegistry;
-        $controllerEx = new ControllerExtractor($requestEx, $resourceEx, $tagRegistry, $config);
-        $routeEx = new RouteExtractor($config, $this->app['router']);
-
-        return new OpenApiGenerator(
-            config: $config,
-            routeExtractor: $routeEx,
-            controllerExtractor: $controllerEx,
-            registry: $registry,
-            tagRegistry: $tagRegistry,
-        );
     }
 
     public function test_generates_complete_and_correct_spec(): void

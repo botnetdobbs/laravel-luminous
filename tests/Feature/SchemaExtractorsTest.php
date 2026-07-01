@@ -5,8 +5,8 @@ namespace Botnetdobbs\Luminous\Tests\Feature;
 use Botnetdobbs\Luminous\Extractors\EnumExtractor;
 use Botnetdobbs\Luminous\Extractors\RequestExtractor;
 use Botnetdobbs\Luminous\Extractors\ResourceExtractor;
+use Botnetdobbs\Luminous\Extractors\RulesSchemaBuilder;
 use Botnetdobbs\Luminous\Generator\ComponentsRegistry;
-use Botnetdobbs\Luminous\LuminousServiceProvider;
 use Botnetdobbs\Luminous\Support\TypeMapper;
 use Botnetdobbs\Luminous\Tests\Fixtures\Enums\PaymentStatus;
 use Botnetdobbs\Luminous\Tests\Fixtures\Requests\AddressRequest;
@@ -22,16 +22,11 @@ use Botnetdobbs\Luminous\Tests\Fixtures\Requests\WildcardRequest;
 use Botnetdobbs\Luminous\Tests\Fixtures\Resources\PaymentResource;
 use Botnetdobbs\Luminous\Tests\Fixtures\Resources\ShapeResource;
 use Botnetdobbs\Luminous\Tests\Fixtures\Resources\TreeNodeResource;
+use Botnetdobbs\Luminous\Tests\LuminousTestCase;
 use Illuminate\Support\Facades\Log;
-use Orchestra\Testbench\TestCase;
 
-class SchemaExtractorsTest extends TestCase
+class SchemaExtractorsTest extends LuminousTestCase
 {
-    protected function getPackageProviders($app): array
-    {
-        return [LuminousServiceProvider::class];
-    }
-
     private function makeRegistry(): ComponentsRegistry
     {
         return new ComponentsRegistry;
@@ -41,8 +36,9 @@ class SchemaExtractorsTest extends TestCase
     {
         $enumExtractor = new EnumExtractor;
         $typeMapper = new TypeMapper($enumExtractor);
+        $rulesBuilder = new RulesSchemaBuilder($typeMapper, $registry, $enumExtractor);
 
-        return new RequestExtractor($typeMapper, $registry, $enumExtractor);
+        return new RequestExtractor($typeMapper, $registry, $enumExtractor, $rulesBuilder);
     }
 
     private function makeResourceExtractor(ComponentsRegistry $registry): ResourceExtractor

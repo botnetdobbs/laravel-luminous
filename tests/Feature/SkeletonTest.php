@@ -2,16 +2,10 @@
 
 namespace Botnetdobbs\Luminous\Tests\Feature;
 
-use Botnetdobbs\Luminous\LuminousServiceProvider;
-use Orchestra\Testbench\TestCase;
+use Botnetdobbs\Luminous\Tests\LuminousTestCase;
 
-class SkeletonTest extends TestCase
+class SkeletonTest extends LuminousTestCase
 {
-    protected function getPackageProviders($app): array
-    {
-        return [LuminousServiceProvider::class];
-    }
-
     protected function defineEnvironment($app): void
     {
         $app['config']->set('luminous.enabled', true);
