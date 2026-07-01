@@ -11,5 +11,6 @@ final class ApiParam
         public readonly string $type = 'string',
         public readonly string $format = '',
         public readonly mixed $example = null,
+        public readonly bool $deprecated = false,
     ) {}
 }

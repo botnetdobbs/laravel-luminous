@@ -9,9 +9,9 @@ Once installed, Luminous registers three routes under the path you set in config
 
 | URL | What you get |
 |-----|-------------|
-| `/docs` | Swagger UI — the interactive browser |
-| `/docs/openapi.json` | The raw OpenAPI 3.1 spec as JSON |
-| `/docs/openapi.yaml` | The raw OpenAPI 3.1 spec as YAML (requires `symfony/yaml`) |
+| `/docs` | Swagger UI, the interactive browser |
+| `/docs/openapi.json` | The raw OpenAPI 3.2 spec as JSON |
+| `/docs/openapi.yaml` | The raw OpenAPI 3.2 spec as YAML (requires `symfony/yaml`) |
 
 Change the path with `LUMINOUS_PATH=api-docs` in your `.env` and the routes move to
 `/api-docs`, `/api-docs/openapi.json`, and `/api-docs/openapi.yaml`.
@@ -30,7 +30,7 @@ This reflects over your routes and classes, generates the OpenAPI spec, stores i
 in the cache, and prints a summary:
 
 ```
-Generating OpenAPI 3.1 spec...
+Generating OpenAPI 3.2 spec...
 Done in 142ms.
 +-----------------------+-------+
 | Metric                | Count |

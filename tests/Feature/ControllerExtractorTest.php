@@ -8,13 +8,18 @@ use Botnetdobbs\Luminous\Extractors\ExtractedRoute;
 use Botnetdobbs\Luminous\Extractors\RequestExtractor;
 use Botnetdobbs\Luminous\Extractors\ResourceExtractor;
 use Botnetdobbs\Luminous\Generator\ComponentsRegistry;
+use Botnetdobbs\Luminous\Generator\TagRegistry;
 use Botnetdobbs\Luminous\LuminousServiceProvider;
 use Botnetdobbs\Luminous\Support\TypeMapper;
+use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\DanglingTagController;
 use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\IgnoredController;
 use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\OrderController;
 use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\PaymentController;
 use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\PlainController;
 use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\TestAttributeController;
+use Botnetdobbs\Luminous\Tests\Fixtures\LedgerEntry;
+use Botnetdobbs\Luminous\Tests\Fixtures\PaymentEvent;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Log;
 use Orchestra\Testbench\TestCase;
 
@@ -25,9 +30,10 @@ class ControllerExtractorTest extends TestCase
         return [LuminousServiceProvider::class];
     }
 
-    private function makeExtractor(array $config = []): ControllerExtractor
+    private function makeExtractor(array $config = [], ?TagRegistry $tagRegistry = null): ControllerExtractor
     {
         $registry = new ComponentsRegistry;
+        $tagRegistry ??= new TagRegistry;
         $enumExtractor = new EnumExtractor;
         $typeMapper = new TypeMapper($enumExtractor);
         $requestEx = new RequestExtractor($typeMapper, $registry, $enumExtractor);
@@ -36,6 +42,7 @@ class ControllerExtractorTest extends TestCase
         return new ControllerExtractor(
             requestExtractor: $requestEx,
             resourceExtractor: $resourceEx,
+            tagRegistry: $tagRegistry,
             config: array_merge([
                 'wrap_responses' => false,
                 'response_wrapper_key' => 'data',
@@ -295,5 +302,287 @@ class ControllerExtractorTest extends TestCase
             'example targeting absent status 999 must not create a response entry');
         Log::shouldHaveReceived('warning')
             ->withArgs(fn ($msg) => str_contains((string) $msg, 'targets response status 999'));
+    }
+
+    public function test_api_stream_with_shape_class_produces_item_schema(): void
+    {
+        $extractor = $this->makeExtractor();
+        $route = new ExtractedRoute(
+            httpMethod: 'get',
+            path: '/stream',
+            controllerClass: TestAttributeController::class,
+            methodName: 'eventStream',
+            routeName: 'stream.events',
+            middlewares: [],
+        );
+
+        $op = $extractor->extract($route);
+
+        $content = $op['responses']['200']['content'];
+        $this->assertArrayHasKey('text/event-stream', $content);
+        $this->assertArrayHasKey('itemSchema', $content['text/event-stream'],
+            'streaming media types must use itemSchema, not schema');
+        $this->assertArrayNotHasKey('schema', $content['text/event-stream']);
+        $this->assertStringContainsString('PaymentEvent', $content['text/event-stream']['itemSchema']['$ref']);
+    }
+
+    public function test_api_stream_schema_class_need_not_be_json_resource(): void
+    {
+        $this->assertFalse(
+            is_subclass_of(PaymentEvent::class, JsonResource::class),
+            'PaymentEvent must be a plain PHP class to prove ApiStream works without JsonResource'
+        );
+        $this->assertFalse(
+            is_subclass_of(LedgerEntry::class, JsonResource::class),
+            'LedgerEntry must be a plain PHP class to prove ApiStream works without JsonResource'
+        );
+
+        $extractor = $this->makeExtractor();
+        $route = new ExtractedRoute(
+            httpMethod: 'get',
+            path: '/stream',
+            controllerClass: TestAttributeController::class,
+            methodName: 'eventStream',
+            routeName: 'stream.events',
+            middlewares: [],
+        );
+
+        $op = $extractor->extract($route);
+
+        $itemSchema = $op['responses']['200']['content']['text/event-stream']['itemSchema'];
+        $this->assertArrayHasKey('$ref', $itemSchema);
+    }
+
+    public function test_api_stream_with_jsonl_emits_correct_media_type(): void
+    {
+        $extractor = $this->makeExtractor();
+        $route = new ExtractedRoute(
+            httpMethod: 'get',
+            path: '/jsonl',
+            controllerClass: TestAttributeController::class,
+            methodName: 'jsonlStream',
+            routeName: 'stream.jsonl',
+            middlewares: [],
+        );
+
+        $op = $extractor->extract($route);
+
+        $content = $op['responses']['200']['content'];
+        $this->assertArrayHasKey('application/jsonl', $content);
+        $this->assertArrayHasKey('itemSchema', $content['application/jsonl']);
+        $this->assertStringContainsString('LedgerEntry', $content['application/jsonl']['itemSchema']['$ref']);
+        $this->assertArrayNotHasKey('text/event-stream', $content);
+    }
+
+    public function test_api_query_querystring_location_emits_content_map(): void
+    {
+        $extractor = $this->makeExtractor();
+        $route = new ExtractedRoute(
+            httpMethod: 'get',
+            path: '/filtered',
+            controllerClass: TestAttributeController::class,
+            methodName: 'filteredIndex',
+            routeName: 'filtered.index',
+            middlewares: [],
+        );
+
+        $op = $extractor->extract($route);
+
+        $filtersParam = collect($op['parameters'] ?? [])
+            ->first(fn ($p) => $p['name'] === 'filters');
+
+        $this->assertNotNull($filtersParam);
+        $this->assertSame('querystring', $filtersParam['in']);
+        $this->assertArrayHasKey('content', $filtersParam,
+            'querystring parameters must use content map, not bare schema');
+        $this->assertArrayNotHasKey('schema', $filtersParam,
+            'querystring parameters must not have top-level schema');
+        $this->assertArrayHasKey('schema',
+            $filtersParam['content']['application/x-www-form-urlencoded'],
+            'schema must be nested under content.application/x-www-form-urlencoded');
+    }
+
+    public function test_enhanced_tag_fields_appear_in_x_luminous_tags(): void
+    {
+        $tagRegistry = new TagRegistry;
+        $extractor = $this->makeExtractor(tagRegistry: $tagRegistry);
+        $route = new ExtractedRoute(
+            httpMethod: 'post',
+            path: '/test',
+            controllerClass: TestAttributeController::class,
+            methodName: 'store',
+            routeName: 'test.store',
+            middlewares: [],
+        );
+
+        $extractor->extract($route);
+
+        $tagObj = collect($tagRegistry->all())->firstWhere('name', 'Test');
+        $this->assertNotNull($tagObj);
+        $this->assertSame('Test endpoints', $tagObj['summary']);
+        $this->assertSame('internal', $tagObj['kind']);
+    }
+
+    public function test_api_stream_does_not_overwrite_api_response_at_same_status(): void
+    {
+        Log::spy();
+
+        $extractor = $this->makeExtractor();
+        $route = new ExtractedRoute(
+            httpMethod: 'get',
+            path: '/conflict',
+            controllerClass: TestAttributeController::class,
+            methodName: 'streamWithConflict',
+            routeName: 'stream.conflict',
+            middlewares: [],
+        );
+
+        $op = $extractor->extract($route);
+
+        // ApiResponse(200) is description-only, so it has no content key
+        $this->assertSame('Regular JSON response', $op['responses']['200']['description'],
+            'ApiResponse must win; description must come from ApiResponse not ApiStream');
+        $this->assertArrayNotHasKey('content', $op['responses']['200'],
+            'ApiStream must not inject content when the status is already occupied by ApiResponse');
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn ($msg) => str_contains((string) $msg, 'conflicts with'));
+    }
+
+    public function test_api_example_on_streaming_response_is_applied(): void
+    {
+        $extractor = $this->makeExtractor();
+        $route = new ExtractedRoute(
+            httpMethod: 'get',
+            path: '/stream',
+            controllerClass: TestAttributeController::class,
+            methodName: 'eventStream',
+            routeName: 'stream.events',
+            middlewares: [],
+        );
+
+        $op = $extractor->extract($route);
+
+        $examples = $op['responses']['200']['content']['text/event-stream']['examples'] ?? [];
+        $this->assertArrayHasKey('payment-event', $examples,
+            'ApiExample targeting a streaming response must be applied when itemSchema is present');
+        $this->assertSame('Sample event', $examples['payment-event']['summary']);
+        $this->assertSame(['event' => 'payment.succeeded'], $examples['payment-event']['value']);
+    }
+
+    public function test_api_query_invalid_location_falls_back_to_query_with_warning(): void
+    {
+        Log::spy();
+
+        $extractor = $this->makeExtractor();
+        $route = new ExtractedRoute(
+            httpMethod: 'get',
+            path: '/search',
+            controllerClass: TestAttributeController::class,
+            methodName: 'queryWithInvalidLocation',
+            routeName: 'search.index',
+            middlewares: [],
+        );
+
+        $op = $extractor->extract($route);
+
+        $param = collect($op['parameters'] ?? [])->firstWhere('name', 'q');
+        $this->assertNotNull($param);
+        $this->assertSame('query', $param['in'],
+            'Invalid location must fall back to query');
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn ($msg) => str_contains((string) $msg, "invalid location 'invalid'"));
+    }
+
+    public function test_deprecated_api_param_emits_deprecated_flag(): void
+    {
+        $extractor = $this->makeExtractor();
+        $route = new ExtractedRoute(
+            httpMethod: 'get',
+            path: '/deprecated/{id}',
+            controllerClass: TestAttributeController::class,
+            methodName: 'deprecatedPathParam',
+            routeName: 'deprecated.param',
+            middlewares: [],
+        );
+
+        $op = $extractor->extract($route);
+
+        $idParam = collect($op['parameters'] ?? [])->firstWhere('name', 'id');
+        $this->assertNotNull($idParam);
+        $this->assertTrue($idParam['deprecated'] ?? false,
+            'ApiParam with deprecated:true must emit deprecated flag');
+    }
+
+    public function test_non_deprecated_api_param_has_no_deprecated_key(): void
+    {
+        $route = new ExtractedRoute('get', '/orders/{orderId}', OrderController::class, 'show', 'order.show', []);
+        $op = $this->makeExtractor()->extract($route);
+
+        $orderId = collect($op['parameters'] ?? [])->firstWhere('name', 'orderId');
+
+        $this->assertNotNull($orderId, 'orderId must be present as an auto-detected path param');
+        $this->assertArrayNotHasKey('deprecated', $orderId,
+            'auto-detected path params must not carry a deprecated key');
+    }
+
+    public function test_api_example_description_appears_in_request_body_examples(): void
+    {
+        $op = $this->makeExtractor()->extract($this->route('post', '/v1/payments', 'store'));
+
+        $example = $op['requestBody']['content']['application/json']['examples']['usd-payment'] ?? null;
+        $this->assertNotNull($example);
+        $this->assertSame('A payment of $100.00 in USD', $example['description'],
+            'ApiExample description must be emitted when set');
+    }
+
+    public function test_parent_tag_field_appears_in_x_luminous_tags(): void
+    {
+        $tagRegistry = new TagRegistry;
+        $extractor = $this->makeExtractor(tagRegistry: $tagRegistry);
+        $route = new ExtractedRoute(
+            httpMethod: 'get',
+            path: '/invoices',
+            controllerClass: DanglingTagController::class,
+            methodName: 'index',
+            routeName: 'invoices.index',
+            middlewares: [],
+        );
+
+        $extractor->extract($route);
+
+        $tagObj = collect($tagRegistry->all())->firstWhere('name', 'Invoices');
+        $this->assertNotNull($tagObj);
+        $this->assertSame('Billing', $tagObj['parent'] ?? null,
+            'parent field from #[ApiTag] must survive buildTags() into TagRegistry');
+    }
+
+    public function test_duplicate_tag_names_merge_fields_from_both_levels(): void
+    {
+        $tagRegistry = new TagRegistry;
+        $extractor = $this->makeExtractor(tagRegistry: $tagRegistry);
+        $route = new ExtractedRoute(
+            httpMethod: 'post',
+            path: '/test',
+            controllerClass: TestAttributeController::class,
+            methodName: 'store',
+            routeName: 'test.store',
+            middlewares: [],
+        );
+
+        $extractor->extract($route);
+
+        // class-level: ApiTag('Test', summary:'Test endpoints', kind:'internal')
+        // method-level: ApiTag('Test', description:'Method override')
+        // merged: all three fields must appear in a single tag object
+        $tagObj = collect($tagRegistry->all())->firstWhere('name', 'Test');
+        $this->assertNotNull($tagObj);
+        $this->assertSame('Test endpoints', $tagObj['summary'] ?? null,
+            'summary from class-level tag must survive merge');
+        $this->assertSame('internal', $tagObj['kind'] ?? null,
+            'kind from class-level tag must survive merge');
+        $this->assertSame('Method override', $tagObj['description'] ?? null,
+            'description from method-level tag must be merged in');
+        $this->assertCount(1, $tagRegistry->all(),
+            'duplicate tag names must be collapsed into one object');
     }
 }

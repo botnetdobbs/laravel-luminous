@@ -22,6 +22,7 @@ use Botnetdobbs\Luminous\Tests\Fixtures\Requests\WildcardRequest;
 use Botnetdobbs\Luminous\Tests\Fixtures\Resources\PaymentResource;
 use Botnetdobbs\Luminous\Tests\Fixtures\Resources\ShapeResource;
 use Botnetdobbs\Luminous\Tests\Fixtures\Resources\TreeNodeResource;
+use Illuminate\Support\Facades\Log;
 use Orchestra\Testbench\TestCase;
 
 class SchemaExtractorsTest extends TestCase
@@ -155,7 +156,7 @@ class SchemaExtractorsTest extends TestCase
         $extractor->extract(TreeNodeResource::class);
 
         $schema = $registry->all()['TreeNodeResource'];
-        // $annotated has #[ApiProperty(ref: '#/components/schemas/CustomSchema')] — annotation must win
+        // $annotated has #[ApiProperty(ref: '#/components/schemas/CustomSchema')]; annotation must win
         $this->assertSame(['$ref' => '#/components/schemas/CustomSchema'], $schema['properties']['annotated']);
     }
 
@@ -167,7 +168,7 @@ class SchemaExtractorsTest extends TestCase
         $extractor->extract(TreeNodeResource::class);
 
         $schema = $registry->all()['TreeNodeResource'];
-        // ?TreeNodeResource $parent is nullable — must produce oneOf not a bare $ref
+        // ?TreeNodeResource $parent is nullable, must produce oneOf not a bare $ref
         $this->assertArrayHasKey('oneOf', $schema['properties']['parent']);
         $oneOf = $schema['properties']['parent']['oneOf'];
         $this->assertCount(2, $oneOf);
@@ -183,7 +184,7 @@ class SchemaExtractorsTest extends TestCase
         $extractor->extract(TreeNodeResource::class);
 
         $schema = $registry->all()['TreeNodeResource'];
-        // PaymentResource $metadata is non-nullable and has no #[ApiProperty] — must appear in required
+        // PaymentResource $metadata is non-nullable and has no #[ApiProperty], must appear in required
         $this->assertContains('metadata', $schema['required'] ?? []);
     }
 
@@ -213,7 +214,7 @@ class SchemaExtractorsTest extends TestCase
 
         $this->assertSame(['$ref' => '#/components/schemas/UnionTypeRequest'], $result);
         $schema = $registry->all()['UnionTypeRequest'];
-        // Union type int|float maps to 'mixed' → empty schema fragment — property still present
+        // Union type int|float maps to 'mixed' (empty schema fragment), property still present
         $this->assertArrayHasKey('amount', $schema['properties']);
     }
 
@@ -237,7 +238,7 @@ class SchemaExtractorsTest extends TestCase
         $registry->registerAnonymous('Invalid Name', ['type' => 'string']);
     }
 
-    // OpenAPI 3.1 nullable
+    // OpenAPI 3.2 nullable
 
     public function test_nullable_api_property_uses_openapi31_type_array(): void
     {
@@ -567,5 +568,22 @@ class SchemaExtractorsTest extends TestCase
         $schema = $registry->all()[$name] ?? null;
         $this->assertSame('object', $schema['type'] ?? null,
             'fallback to rules() must produce an object schema');
+    }
+
+    public function test_resource_extractor_logs_warning_when_class_does_not_exist(): void
+    {
+        Log::spy();
+
+        $registry = $this->makeRegistry();
+        $enumExtractor = new EnumExtractor;
+        $typeMapper = new TypeMapper($enumExtractor);
+        $extractor = new ResourceExtractor($typeMapper, $registry, $enumExtractor);
+
+        $result = $extractor->extract('NonExistentStreamClass');
+
+        $this->assertSame(['type' => 'object'], $result,
+            'missing class must return {type: object} fallback');
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn ($msg) => str_contains((string) $msg, 'NonExistentStreamClass'));
     }
 }

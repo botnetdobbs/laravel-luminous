@@ -9,6 +9,7 @@ use Botnetdobbs\Luminous\Extractors\ResourceExtractor;
 use Botnetdobbs\Luminous\Extractors\RouteExtractor;
 use Botnetdobbs\Luminous\Generator\ComponentsRegistry;
 use Botnetdobbs\Luminous\Generator\OpenApiGenerator;
+use Botnetdobbs\Luminous\Generator\TagRegistry;
 use Botnetdobbs\Luminous\LuminousServiceProvider;
 use Botnetdobbs\Luminous\Support\TypeMapper;
 use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\PaymentController;
@@ -47,7 +48,8 @@ class FullSpecGenerationTest extends TestCase
         $typeMapper = new TypeMapper($enumEx);
         $requestEx = new RequestExtractor($typeMapper, $registry, $enumEx);
         $resourceEx = new ResourceExtractor($typeMapper, $registry, $enumEx);
-        $controllerEx = new ControllerExtractor($requestEx, $resourceEx, $config);
+        $tagRegistry = new TagRegistry;
+        $controllerEx = new ControllerExtractor($requestEx, $resourceEx, $tagRegistry, $config);
         $routeEx = new RouteExtractor($config, $this->app['router']);
 
         return new OpenApiGenerator(
@@ -55,6 +57,7 @@ class FullSpecGenerationTest extends TestCase
             routeExtractor: $routeEx,
             controllerExtractor: $controllerEx,
             registry: $registry,
+            tagRegistry: $tagRegistry,
         );
     }
 
@@ -62,7 +65,7 @@ class FullSpecGenerationTest extends TestCase
     {
         $spec = $this->makeGenerator()->generate();
 
-        $this->assertSame('3.1.0', $spec['openapi']);
+        $this->assertSame('3.2.0', $spec['openapi']);
         $this->assertArrayHasKey('info', $spec);
         $this->assertArrayHasKey('paths', $spec);
         $this->assertArrayHasKey('components', $spec);

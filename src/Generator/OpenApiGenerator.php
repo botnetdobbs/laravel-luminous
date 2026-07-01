@@ -12,15 +12,16 @@ class OpenApiGenerator
         private readonly RouteExtractor $routeExtractor,
         private readonly ControllerExtractor $controllerExtractor,
         private readonly ComponentsRegistry $registry,
+        private readonly TagRegistry $tagRegistry,
     ) {}
 
     public function generate(): array
     {
         $this->registry->reset();
+        $this->tagRegistry->reset();
         $this->registerSharedSchemas();
 
         $paths = [];
-        $rawTagObjects = [];
         $seenOperationIds = [];
 
         foreach ($this->routeExtractor->extract() as $route) {
@@ -38,10 +39,6 @@ class OpenApiGenerator
                         $seenOperationIds[$id] = 1;
                     }
                 }
-                foreach ($operation['x-luminous-tags'] ?? [] as $tagObj) {
-                    $rawTagObjects[$tagObj['name']] = $tagObj;
-                }
-                unset($operation['x-luminous-tags']);
                 $paths[$route->path][$route->httpMethod] = $operation;
             } catch (\Throwable $e) {
                 logger()->warning('Luminous: failed to extract route [{method} {path}]: {type} {message}', [
@@ -55,19 +52,27 @@ class OpenApiGenerator
 
         $paths = collect($paths)->sortKeys()->all();
 
-        $tags = collect($rawTagObjects)
+        $tags = collect($this->tagRegistry->all())
             ->sortBy('name')
             ->values()
             ->all();
 
-        return [
-            'openapi' => '3.1.0',
+        $this->validateTagParents($tags);
+
+        $doc = [
+            'openapi' => '3.2.0',
             'info' => $this->buildInfo(),
             'servers' => $this->config['servers'] ?? [],
             'tags' => $tags,
             'paths' => $paths,
             'components' => $this->buildComponents(),
         ];
+
+        if ($selfUrl = $this->config['self_url'] ?? null) {
+            $doc['$self'] = $selfUrl;
+        }
+
+        return $doc;
     }
 
     private function buildInfo(): array
@@ -94,6 +99,21 @@ class OpenApiGenerator
         }
 
         return $info;
+    }
+
+    private function validateTagParents(array $tags): void
+    {
+        $tagNames = collect($tags)->pluck('name')->flip()->all();
+
+        foreach ($tags as $tag) {
+            if (isset($tag['parent']) && ! isset($tagNames[$tag['parent']])) {
+                logger()->warning(
+                    "Luminous: tag '{$tag['name']}' references parent '{$tag['parent']}' ".
+                    "which is not declared. Add #[ApiTag('{$tag['parent']}')]".
+                    ' to a controller.'
+                );
+            }
+        }
     }
 
     private function registerSharedSchemas(): void

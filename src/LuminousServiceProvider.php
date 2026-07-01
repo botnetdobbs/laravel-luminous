@@ -11,6 +11,7 @@ use Botnetdobbs\Luminous\Extractors\ResourceExtractor;
 use Botnetdobbs\Luminous\Extractors\RouteExtractor;
 use Botnetdobbs\Luminous\Generator\ComponentsRegistry;
 use Botnetdobbs\Luminous\Generator\OpenApiGenerator;
+use Botnetdobbs\Luminous\Generator\TagRegistry;
 use Botnetdobbs\Luminous\Http\Controllers\LuminousController;
 use Botnetdobbs\Luminous\Support\CacheManager;
 use Botnetdobbs\Luminous\Support\TypeMapper;
@@ -25,10 +26,12 @@ class LuminousServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/luminous.php', 'luminous');
 
         $this->app->singleton(ComponentsRegistry::class);
+        $this->app->singleton(TagRegistry::class);
 
         $this->app->singleton(OpenApiGenerator::class, function ($app) {
             $config = $app['config']['luminous'];
             $registry = $app->make(ComponentsRegistry::class);
+            $tagRegistry = $app->make(TagRegistry::class);
             $routeExtractor = new RouteExtractor($config, $app['router']);
 
             $enumExtractor = new EnumExtractor;
@@ -42,9 +45,11 @@ class LuminousServiceProvider extends ServiceProvider
                 controllerExtractor: new ControllerExtractor(
                     requestExtractor: $requestExtractor,
                     resourceExtractor: $resourceExtractor,
+                    tagRegistry: $tagRegistry,
                     config: $config,
                 ),
                 registry: $registry,
+                tagRegistry: $tagRegistry,
             );
         });
 

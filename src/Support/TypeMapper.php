@@ -281,7 +281,7 @@ class TypeMapper
             }
         }
 
-        // OpenAPI 3.1: convert nullable sentinel to type array
+        // OpenAPI 3.2: convert nullable sentinel to type array
         if (isset($schema['nullable'])) {
             unset($schema['nullable']);
             $type = $schema['type'] ?? 'string';

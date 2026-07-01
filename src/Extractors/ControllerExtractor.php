@@ -14,16 +14,21 @@ use Botnetdobbs\Luminous\Attributes\ApiParam;
 use Botnetdobbs\Luminous\Attributes\ApiQuery;
 use Botnetdobbs\Luminous\Attributes\ApiResponse;
 use Botnetdobbs\Luminous\Attributes\ApiSecurity;
+use Botnetdobbs\Luminous\Attributes\ApiStream;
 use Botnetdobbs\Luminous\Attributes\ApiTag;
+use Botnetdobbs\Luminous\Generator\TagRegistry;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ControllerExtractor
 {
     private const DEFAULT_MEDIA_TYPE = 'application/json';
 
+    private const ALLOWED_LOCATIONS = ['query', 'querystring', 'header', 'path', 'cookie'];
+
     public function __construct(
         private readonly RequestExtractor $requestExtractor,
         private readonly ResourceExtractor $resourceExtractor,
+        private readonly TagRegistry $tagRegistry,
         private readonly array $config,
     ) {}
 
@@ -76,7 +81,9 @@ class ControllerExtractor
         $tagObjects = $this->buildTags($classRef, $methodRef);
         $tagNames = collect($tagObjects)->pluck('name')->values()->all();
         $operation['tags'] = $tagNames;
-        $operation['x-luminous-tags'] = $tagObjects;
+        foreach ($tagObjects as $tagObj) {
+            $this->tagRegistry->register($tagObj);
+        }
         $operation['operationId'] = $operationId ?? $this->generateOperationId($route, $tagNames);
         $operation['security'] = $this->buildSecurity($classRef, $methodRef);
 
@@ -98,10 +105,11 @@ class ControllerExtractor
 
         foreach ($exampleInstances as $example) {
             if ($example->type === 'request' && isset($operation['requestBody'])) {
-                $operation['requestBody']['content'][$example->mediaType]['examples'][$example->name] = [
-                    'summary' => $example->summary,
-                    'value' => $example->value,
-                ];
+                $exampleObj = ['summary' => $example->summary, 'value' => $example->value];
+                if ($example->description !== '') {
+                    $exampleObj['description'] = $example->description;
+                }
+                $operation['requestBody']['content'][$example->mediaType]['examples'][$example->name] = $exampleObj;
             }
         }
 
@@ -118,11 +126,21 @@ class ControllerExtractor
 
     private function buildTags(\ReflectionClass $classRef, \ReflectionMethod $methodRef): array
     {
+        // Class-level tags are listed first; PHP + union inside reduce gives them priority for shared keys.
         return collect($classRef->getAttributes(ApiTag::class))
             ->map(fn ($a) => $a->newInstance())
             ->merge(collect($methodRef->getAttributes(ApiTag::class))->map(fn ($a) => $a->newInstance()))
-            ->unique(fn (ApiTag $tag) => $tag->name)
-            ->map(fn (ApiTag $tag) => collect(['name' => $tag->name, 'description' => $tag->description ?: null])->filter()->all())
+            ->groupBy(fn (ApiTag $tag) => $tag->name)
+            ->map(fn ($group) => $group->reduce(
+                fn (array $carry, ApiTag $tag) => $carry + collect([
+                    'name' => $tag->name,
+                    'description' => $tag->description ?: null,
+                    'summary' => $tag->summary ?: null,
+                    'parent' => $tag->parent,
+                    'kind' => $tag->kind ?: null,
+                ])->filter(fn ($v) => $v !== null)->all(),
+                []
+            ))
             ->values()
             ->all();
     }
@@ -155,12 +173,24 @@ class ControllerExtractor
 
     private function buildParameters(\ReflectionMethod $methodRef, ExtractedRoute $route): array
     {
-        $parameters = [];
-        $explicitParamNames = [];
+        [$apiParamEntries, $explicitNames] = $this->buildApiParamEntries($methodRef);
+
+        return array_merge(
+            $apiParamEntries,
+            $this->buildInferredPathEntries($methodRef, $route, $explicitNames),
+            $this->buildApiQueryEntries($methodRef),
+            $this->buildApiHeaderEntries($methodRef),
+        );
+    }
+
+    private function buildApiParamEntries(\ReflectionMethod $methodRef): array
+    {
+        $entries = [];
+        $names = [];
 
         foreach ($methodRef->getAttributes(ApiParam::class) as $attr) {
             $param = $attr->newInstance();
-            $explicitParamNames[] = $param->name;
+            $names[] = $param->name;
             $schema = ['type' => $param->type];
             if ($param->format !== '') {
                 $schema['format'] = $param->format;
@@ -178,14 +208,23 @@ class ControllerExtractor
             if ($param->description !== '') {
                 $entry['description'] = $param->description;
             }
-            $parameters[] = $entry;
+            if ($param->deprecated) {
+                $entry['deprecated'] = true;
+            }
+            $entries[] = $entry;
         }
 
+        return [$entries, $names];
+    }
+
+    private function buildInferredPathEntries(\ReflectionMethod $methodRef, ExtractedRoute $route, array $explicitNames): array
+    {
+        $entries = [];
         preg_match_all('/\{(\w+)\}/', $route->path, $matches);
         $phpParams = collect($methodRef->getParameters())->keyBy(fn ($p) => $p->getName());
 
         foreach ($matches[1] ?? [] as $name) {
-            if (in_array($name, $explicitParamNames, true)) {
+            if (in_array($name, $explicitNames, true)) {
                 continue;
             }
 
@@ -201,13 +240,20 @@ class ControllerExtractor
                 };
             }
 
-            $parameters[] = [
+            $entries[] = [
                 'name' => $name,
                 'in' => 'path',
                 'required' => true,
                 'schema' => ['type' => $openApiType],
             ];
         }
+
+        return $entries;
+    }
+
+    private function buildApiQueryEntries(\ReflectionMethod $methodRef): array
+    {
+        $entries = [];
 
         foreach ($methodRef->getAttributes(ApiQuery::class) as $attr) {
             $query = $attr->newInstance();
@@ -219,20 +265,49 @@ class ControllerExtractor
                 $schema['enum'] = $query->enum;
             }
 
-            $entry = [
-                'name' => $query->name,
-                'in' => 'query',
-                'required' => $query->required,
-                'schema' => $schema,
-            ];
+            $location = in_array($query->location, self::ALLOWED_LOCATIONS, true)
+                ? $query->location
+                : 'query';
+
+            if ($location !== $query->location) {
+                logger()->warning(
+                    "Luminous: ApiQuery '{$query->name}' has invalid location '{$query->location}'. ".
+                    'Allowed: '.implode(', ', self::ALLOWED_LOCATIONS).". Falling back to 'query'."
+                );
+            }
+
+            if ($location === 'querystring') {
+                $entry = [
+                    'name' => $query->name,
+                    'in' => 'querystring',
+                    'required' => $query->required,
+                    'content' => [
+                        'application/x-www-form-urlencoded' => ['schema' => $schema],
+                    ],
+                ];
+            } else {
+                $entry = [
+                    'name' => $query->name,
+                    'in' => $location,
+                    'required' => $query->required,
+                    'schema' => $schema,
+                ];
+            }
             if ($query->description !== '') {
                 $entry['description'] = $query->description;
             }
             if ($query->deprecated) {
                 $entry['deprecated'] = true;
             }
-            $parameters[] = $entry;
+            $entries[] = $entry;
         }
+
+        return $entries;
+    }
+
+    private function buildApiHeaderEntries(\ReflectionMethod $methodRef): array
+    {
+        $entries = [];
 
         foreach ($methodRef->getAttributes(ApiHeader::class) as $attr) {
             $header = $attr->newInstance();
@@ -253,10 +328,10 @@ class ControllerExtractor
             if ($header->description !== '') {
                 $entry['description'] = $header->description;
             }
-            $parameters[] = $entry;
+            $entries[] = $entry;
         }
 
-        return $parameters;
+        return $entries;
     }
 
     private function buildRequestBody(\ReflectionMethod $methodRef): ?array
@@ -364,6 +439,28 @@ class ControllerExtractor
             }
         }
 
+        $streamAttr = $methodRef->getAttributes(ApiStream::class)[0] ?? null;
+
+        if ($streamAttr !== null) {
+            $stream = $streamAttr->newInstance();
+            $status = (string) $stream->status;
+
+            if (isset($responses[$status])) {
+                logger()->warning(
+                    "Luminous: #[ApiStream] on {$methodRef->class}::{$methodRef->name} conflicts with ".
+                    "#[ApiResponse({$stream->status})]. ApiStream was ignored; use distinct status codes."
+                );
+            } else {
+                $itemSchema = $this->resourceExtractor->extract($stream->schema);
+                $responses[$status] = [
+                    'description' => $stream->description,
+                    'content' => [
+                        $stream->mediaType => ['itemSchema' => $itemSchema],
+                    ],
+                ];
+            }
+        }
+
         foreach ($exampleInstances as $example) {
             if ($example->type === 'response') {
                 $status = (string) $example->status;
@@ -375,17 +472,19 @@ class ControllerExtractor
 
                     continue;
                 }
-                if (! isset($responses[$status]['content'][$example->mediaType]['schema'])) {
+                if (! isset($responses[$status]['content'][$example->mediaType]['schema']) &&
+                    ! isset($responses[$status]['content'][$example->mediaType]['itemSchema'])) {
                     logger()->warning(
                         "Luminous: ApiExample '{$example->name}' targets response {$status} which has no schema. Example was not applied."
                     );
 
                     continue;
                 }
-                $responses[$status]['content'][$example->mediaType]['examples'][$example->name] = [
-                    'summary' => $example->summary,
-                    'value' => $example->value,
-                ];
+                $exampleObj = ['summary' => $example->summary, 'value' => $example->value];
+                if ($example->description !== '') {
+                    $exampleObj['description'] = $example->description;
+                }
+                $responses[$status]['content'][$example->mediaType]['examples'][$example->name] = $exampleObj;
             }
         }
 

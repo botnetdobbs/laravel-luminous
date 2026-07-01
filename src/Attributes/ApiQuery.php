@@ -13,5 +13,6 @@ final class ApiQuery
         public readonly mixed $example = null,
         public readonly array $enum = [],
         public readonly bool $deprecated = false,
+        public readonly string $location = 'query',
     ) {}
 }

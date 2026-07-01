@@ -72,6 +72,27 @@ class PaymentController extends Controller
 }
 ```
 
+### Hierarchical tags
+
+Use `parent` to nest tags under a parent group. Use `summary` for a short one-line
+label and `kind` to categorise the tag for documentation renderers that support it.
+
+```php
+// The parent group. No endpoints live directly here.
+#[ApiTag('Finance', summary: 'All money-related operations', kind: 'group')]
+class FinanceGroupController extends Controller {}
+
+// A child tag. Will appear nested under "Finance" in renderers that support parent.
+#[ApiTag('Payments', parent: 'Finance', summary: 'Payment creation and lifecycle')]
+class PaymentController extends Controller {}
+
+#[ApiTag('Refunds', parent: 'Finance', summary: 'Refund and reversal operations')]
+class RefundController extends Controller {}
+```
+
+If you reference a `parent` that is not declared anywhere, Luminous logs a warning
+at generation time and continues. It will not create the parent for you.
+
 ---
 
 ## Documenting responses
@@ -187,6 +208,17 @@ The rule is simple: if the URL has `{something}`, you document `something`. What
 PHP method receives (a string, an integer, a model, or anything else) does not affect
 the path parameter definition.
 
+### Deprecated path parameters
+
+Mark a path parameter as deprecated when you are phasing it out but cannot remove it
+yet. Swagger UI crosses it out so consumers know to avoid it.
+
+```php
+#[ApiParam('legacyId', 'Deprecated. Use uuid instead.', deprecated: true)]
+#[ApiParam('uuid', 'The payment UUID')]
+public function show(string $legacyId, string $uuid): JsonResponse {}
+```
+
 ---
 
 ## Documenting query parameters
@@ -200,6 +232,29 @@ use Botnetdobbs\Luminous\Attributes\ApiQuery;
 #[ApiQuery('include', 'Comma-separated relationships to sideload', example: 'customer,items')]
 public function index(Request $request): JsonResponse {}
 ```
+
+### Deprecated query parameters
+
+```php
+#[ApiQuery('page', 'Deprecated. Use cursor instead.', deprecated: true)]
+#[ApiQuery('cursor', 'Opaque pagination cursor')]
+public function index(Request $request): JsonResponse {}
+```
+
+### Whole-querystring parameters
+
+Some APIs accept a structured value as the entire query string rather than individual
+named parameters. GraphQL endpoints, JSONPath filters, and some search APIs work this
+way. Use `location: 'querystring'` to document the query string as a single field.
+
+```php
+// The entire query string is one value: /search?filters[status]=active&filters[amount_gte]=1000
+#[ApiQuery('filters', 'JSONPath filter expression', location: 'querystring')]
+public function search(Request $request): JsonResponse {}
+```
+
+This emits `in: querystring` in the spec, which is an OpenAPI 3.2.0 feature. Older
+tooling that does not understand 3.2.0 will ignore this parameter.
 
 ---
 
@@ -231,9 +286,13 @@ use Botnetdobbs\Luminous\Attributes\ApiExample;
     'source_account_id'      => '550e8400-e29b-41d4-a716-446655440000',
     'destination_account_id' => '6ba7b810-9dad-11d1-80b4-00c04fd430c8',
     'description'            => 'Order #ORD-2024-1234',
-])]
+], description: 'A payment of $100.00 in USD cents. Amount is always in the smallest currency unit.')]
 public function store(CreatePaymentRequest $request): JsonResponse {}
 ```
+
+The second argument (`summary`) is the short label shown in the dropdown. The
+`description` argument is for longer text that appears below the summary when a
+consumer expands the example.
 
 **Response example** (use `type: 'response'` and `status:` to point to a specific
 `#[ApiResponse]`):
@@ -254,6 +313,119 @@ public function store(CreatePaymentRequest $request): JsonResponse {}
 The `status` argument tells Luminous which `#[ApiResponse]` this example belongs to.
 If you have multiple response status codes, add a separate `#[ApiExample]` for each
 one you want to illustrate.
+
+---
+
+## Documenting streaming endpoints
+
+Use `#[ApiStream]` for endpoints that stream a sequence of items rather than returning
+a single response body. Server-Sent Events (SSE) and JSON Lines (JSONL) are the most
+common cases.
+
+```php
+use Botnetdobbs\Luminous\Attributes\ApiStream;
+
+// SSE endpoint. Defaults to text/event-stream at status 200.
+#[ApiStream(PaymentEvent::class, description: 'One event per payment state change')]
+public function stream(string $id): StreamedResponse {}
+
+// JSONL export. Each line is one LedgerEntry object.
+#[ApiStream(LedgerEntry::class, mediaType: 'application/jsonl', description: 'One entry per line')]
+public function export(Request $request): StreamedResponse {}
+```
+
+The class you pass as the first argument describes a single item in the stream. It does
+not need to extend `JsonResource`. The recommended approach is `#[ApiShape]` with a
+`schema()` method. It keeps all the type information in one place and gives you the
+full Shape builder API.
+
+`PaymentEvent` for the SSE endpoint:
+
+```php
+use Botnetdobbs\Luminous\Attributes\ApiShape;
+use Botnetdobbs\Luminous\Support\Shape;
+
+#[ApiShape]
+class PaymentEvent
+{
+    public static function schema(): Shape
+    {
+        return Shape::object([
+            'event'      => Shape::string()->description('Event type, e.g. payment.succeeded'),
+            'payment_id' => Shape::uuid(),
+            'status'     => Shape::enum(PaymentStatus::class),
+            'timestamp'  => Shape::dateTime(),
+        ]);
+    }
+}
+```
+
+`LedgerEntry` for the JSONL endpoint:
+
+```php
+#[ApiShape]
+class LedgerEntry
+{
+    public static function schema(): Shape
+    {
+        return Shape::object([
+            'id'         => Shape::uuid()->readOnly(),
+            'amount'     => Shape::integer()->readOnly()->description('Amount in minor units'),
+            'direction'  => Shape::string()->readOnly()->values(['debit', 'credit']),
+            'currency'   => Shape::string()->readOnly(),
+            'created_at' => Shape::dateTime()->readOnly(),
+        ]);
+    }
+}
+```
+
+If you prefer to annotate properties directly rather than writing a `schema()` method,
+you can use `#[ApiProperty]` on public properties instead. The `LedgerEntry` above
+could equally be written as:
+
+```php
+use Botnetdobbs\Luminous\Attributes\ApiProperty;
+
+class LedgerEntry
+{
+    #[ApiProperty(type: 'string', format: 'uuid', readOnly: true)]
+    public string $id;
+
+    #[ApiProperty(type: 'integer', readOnly: true, description: 'Amount in minor units')]
+    public int $amount;
+
+    #[ApiProperty(type: 'string', readOnly: true, enum: ['debit', 'credit'])]
+    public string $direction;
+
+    #[ApiProperty(type: 'string', readOnly: true)]
+    public string $currency;
+
+    #[ApiProperty(type: 'string', format: 'date-time', readOnly: true)]
+    public string $created_at;
+}
+```
+
+`#[ApiStream]` generates `itemSchema` in the spec instead of `schema`. This is an
+OpenAPI 3.2.0 feature that tells consumers the endpoint produces a continuous stream
+of items rather than a single response payload.
+
+You can use `#[ApiExample]` alongside `#[ApiStream]` to show what one item looks like:
+
+```php
+#[ApiStream(PaymentEvent::class, description: 'Real-time payment updates')]
+#[ApiExample('payment-event', 'Succeeded event', [
+    'event'      => 'payment.succeeded',
+    'payment_id' => '550e8400-e29b-41d4-a716-446655440000',
+    'status'     => 'succeeded',
+    'timestamp'  => '2024-01-15T09:30:00Z',
+], type: 'response', status: 200, mediaType: 'text/event-stream')]
+public function stream(string $id): StreamedResponse {}
+```
+
+Only one `#[ApiStream]` is allowed per method. If you need to document a second
+response at the same status code, use `#[ApiResponse]` for it and `#[ApiStream]` for
+the streaming one at a different status. Luminous logs a warning and skips the stream
+if both target the same status code.
 
 ---
 
@@ -326,9 +498,9 @@ class InternalController extends Controller {}
 When a single endpoint can return different shapes depending on the result, use
 `#[ApiComposedOf]`. The first argument is the composition type:
 
-- `'oneOf'` — the response matches exactly one of the listed schemas (mutually exclusive)
-- `'anyOf'` — the response matches at least one of the listed schemas
-- `'allOf'` — the response matches all of the listed schemas (used for schema extension)
+- `'oneOf'`: the response matches exactly one of the listed schemas (mutually exclusive)
+- `'anyOf'`: the response matches at least one of the listed schemas
+- `'allOf'`: the response matches all of the listed schemas (used for schema extension)
 
 ```php
 use Botnetdobbs\Luminous\Attributes\ApiComposedOf;

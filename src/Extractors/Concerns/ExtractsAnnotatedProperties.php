@@ -36,7 +36,7 @@ trait ExtractsAnnotatedProperties
             $nullable = ($reflType?->allowsNull() ?? false) || $apiProp->nullable;
             $propName = $prop->getName();
 
-            // Explicit $ref. OpenAPI 3.1 nullable refs use oneOf.
+            // Explicit $ref. OpenAPI 3.2 nullable refs use oneOf.
             if ($apiProp->ref) {
                 if ($nullable) {
                     $properties[$propName] = ['oneOf' => [['$ref' => $apiProp->ref], ['type' => 'null']]];
@@ -75,7 +75,7 @@ trait ExtractsAnnotatedProperties
             if ($apiProp->example !== null) {
                 $schema['example'] = $apiProp->example;
             }
-            // OpenAPI 3.1: nullable primitives use type array instead of nullable: true.
+            // OpenAPI 3.2: nullable primitives use type array instead of nullable: true.
             // Guard empty schema (e.g. int|float union). Applying nullable to {} wrongly yields {type:[string,null]}.
             if ($nullable && ! empty($schema)) {
                 $type = $schema['type'] ?? 'string';

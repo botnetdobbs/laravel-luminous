@@ -22,6 +22,11 @@ class ResourceExtractor
     public function extract(string $resourceClass): array
     {
         if (! class_exists($resourceClass)) {
+            logger()->warning(
+                "Luminous: [{$resourceClass}] class does not exist. ".
+                'Check for typos in #[ApiStream] or #[ApiResponse]. Schema will be {type: object}.'
+            );
+
             return ['type' => 'object'];
         }
 

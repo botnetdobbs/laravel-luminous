@@ -181,6 +181,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Document Identity ($self)
+    |--------------------------------------------------------------------------
+    |
+    | OpenAPI 3.2.0 top-level $self field. Declares the canonical URI of this
+    | document, which clarifies relative reference resolution in multi-file
+    | descriptions. Leave null to omit the field.
+    |
+    */
+    'self_url' => env('LUMINOUS_SELF_URL', null),
+
+    /*
+    |--------------------------------------------------------------------------
     | Spec Cache
     |--------------------------------------------------------------------------
     |
@@ -220,11 +232,11 @@ return [
         'syntax_highlight_theme' => 'monokai',
         'try_it_out_enabled' => true,
         'cdn' => [
-            'swagger_ui' => 'https://unpkg.com/swagger-ui-dist@5.18.2',
+            'swagger_ui' => 'https://unpkg.com/swagger-ui-dist@5.32.8',
             'sri' => [
-                'swagger-ui.css' => 'sha256-jzPZlgJTFwSdSphk9CHqsrKiR4cvOIAm+pTGVJEyWec=',
-                'swagger-ui-bundle.js' => 'sha256-xQuUu8TwI5Qyb7eu0fT7aTs2d/Sz0zRODWExgIy/KB8=',
-                'swagger-ui-standalone-preset.js' => 'sha256-bFozOOadhOewURe5unsUHSS9P8ECqesC6ATTsE3OxaE=',
+                'swagger-ui.css' => 'sha256-yiOPfXws9EgMHnepw7nakVqyFulv/TVOaQdlYMZQxt4=',
+                'swagger-ui-bundle.js' => 'sha256-l/A82ui58J+PM7YE7UeWvTGMN46QdjtGi7SqCGC9kKc=',
+                'swagger-ui-standalone-preset.js' => 'sha256-O178AUxnFi016ghwqN2wCWwLxQkrcssn/0iiiez7iYM=',
             ],
         ],
     ],

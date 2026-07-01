@@ -26,7 +26,7 @@ class HttpLayerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'application/json');
-        $this->assertSame('3.1.0', $response->json('openapi'));
+        $this->assertSame('3.2.0', $response->json('openapi'));
     }
 
     public function test_yaml_endpoint_returns_yaml_when_library_available(): void
@@ -78,11 +78,11 @@ class HttpLayerTest extends TestCase
 
         $cached = cache()->store(config('luminous.cache.store'))->get('luminous:test:spec');
         $this->assertNotNull($cached, 'Spec was not written to cache after first request');
-        $this->assertSame('3.1.0', $cached['openapi']);
+        $this->assertSame('3.2.0', $cached['openapi']);
 
         $response = $this->get('/docs/openapi.json');
         $response->assertStatus(200);
-        $this->assertSame('3.1.0', $response->json('openapi'));
+        $this->assertSame('3.2.0', $response->json('openapi'));
 
         cache()->store(config('luminous.cache.store'))->forget('luminous:test:spec');
     }
@@ -94,7 +94,7 @@ class HttpLayerTest extends TestCase
         $this->app['config']->set('luminous.cache.ttl', 60);
 
         $manager = app(CacheManager::class);
-        $spec = ['openapi' => '3.1.0', 'test' => true];
+        $spec = ['openapi' => '3.2.0', 'test' => true];
 
         $manager->put($spec);
         $this->assertSame($spec, $manager->get());
@@ -130,9 +130,9 @@ class HttpLayerTest extends TestCase
         if (! $exporter->isAvailable()) {
             $this->expectException(\RuntimeException::class);
             $this->expectExceptionMessage('composer require symfony/yaml');
-            $exporter->export(['openapi' => '3.1.0']);
+            $exporter->export(['openapi' => '3.2.0']);
         } else {
-            $output = $exporter->export(['openapi' => '3.1.0']);
+            $output = $exporter->export(['openapi' => '3.2.0']);
             $this->assertStringContainsString('openapi:', $output);
         }
     }

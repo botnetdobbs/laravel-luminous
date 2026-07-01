@@ -23,7 +23,7 @@ class SkeletonTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJsonStructure(['openapi', 'info', 'paths']);
-        $this->assertSame('3.1.0', $response->json('openapi'));
+        $this->assertSame('3.2.0', $response->json('openapi'));
     }
 
     public function test_ui_endpoint_returns_html(): void

@@ -12,6 +12,7 @@ final class ApiExample
         public readonly string $type = 'request',
         public readonly int $status = 200,
         public readonly string $mediaType = 'application/json',
+        public readonly string $description = '',
     ) {
         if (! in_array($type, ['request', 'response'], true)) {
             throw new \InvalidArgumentException(

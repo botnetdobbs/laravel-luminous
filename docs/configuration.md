@@ -52,6 +52,7 @@ return [
     // Laravel's JsonResource wraps by default, so set this to true unless you
     // have called JsonResource::withoutWrapping() somewhere in your app.
     'wrap_responses' => false,
+    'response_wrapper_key' => 'data',
 
     // Whether to include the shared PaginationMeta schema in components.
     // This is referenced automatically when you use paginated: true on #[ApiResponse].
@@ -64,11 +65,15 @@ return [
     // Security scheme definitions. These go into components.securitySchemes.
     'security_schemes' => [],
 
+    // OpenAPI 3.2.0 $self field. Declares the canonical URL of this spec document.
+    // Leave null to omit the field.
+    'self_url' => env('LUMINOUS_SELF_URL', null),
+
     // Cache settings. Always enable caching in production.
     'cache' => [
         'enabled' => env('LUMINOUS_CACHE', true),
-        'store'   => env('LUMINOUS_CACHE_STORE', 'file'),
-        'key'     => env('LUMINOUS_CACHE_KEY', 'luminous_spec'),
+        'store'   => env('LUMINOUS_CACHE_STORE', null),
+        'key'     => env('LUMINOUS_CACHE_KEY', 'luminous:spec'),
         'ttl'     => env('LUMINOUS_CACHE_TTL', 3600),
     ],
 ];
@@ -128,6 +133,20 @@ switch between them.
     ['url' => 'http://localhost',                 'description' => 'Local'],
 ],
 ```
+
+---
+
+## Document identity
+
+`self_url` sets the OpenAPI 3.2.0 `$self` field, which declares the canonical URL of
+your spec document. Most tools do not require it, but it helps with relative reference
+resolution in multi-file API descriptions.
+
+```env
+LUMINOUS_SELF_URL=https://api.example.com/docs/openapi.json
+```
+
+Leave it unset (the default) to omit the field entirely.
 
 ---
 

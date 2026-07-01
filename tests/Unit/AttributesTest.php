@@ -14,6 +14,7 @@ use Botnetdobbs\Luminous\Attributes\ApiProperty;
 use Botnetdobbs\Luminous\Attributes\ApiQuery;
 use Botnetdobbs\Luminous\Attributes\ApiResponse;
 use Botnetdobbs\Luminous\Attributes\ApiSecurity;
+use Botnetdobbs\Luminous\Attributes\ApiStream;
 use Botnetdobbs\Luminous\Attributes\ApiTag;
 use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\TestAttributeController;
 use PHPUnit\Framework\TestCase;
@@ -134,6 +135,34 @@ class AttributesTest extends TestCase
         $this->assertSame('550e8400', $param->example);
     }
 
+    public function test_api_param_deprecated_defaults_to_false(): void
+    {
+        $param = new ApiParam('id');
+
+        $this->assertFalse($param->deprecated);
+    }
+
+    public function test_api_param_deprecated_accepts_true(): void
+    {
+        $param = new ApiParam('id', deprecated: true);
+
+        $this->assertTrue($param->deprecated);
+    }
+
+    public function test_api_query_deprecated_defaults_to_false(): void
+    {
+        $query = new ApiQuery('page');
+
+        $this->assertFalse($query->deprecated);
+    }
+
+    public function test_api_query_deprecated_accepts_true(): void
+    {
+        $query = new ApiQuery('legacyFilter', deprecated: true);
+
+        $this->assertTrue($query->deprecated);
+    }
+
     public function test_api_items_constructor_round_trip(): void
     {
         $items = new ApiItems(ref: '#/components/schemas/OrderItem', type: null, format: null, enum: ['x', 'y']);
@@ -169,5 +198,71 @@ class AttributesTest extends TestCase
 
         $this->assertSame('string', $header->type);
         $this->assertSame('uuid', $header->format);
+    }
+
+    public function test_api_tag_enhanced_fields_default_correctly(): void
+    {
+        $tag = new ApiTag('Payments');
+
+        $this->assertSame('Payments', $tag->name);
+        $this->assertSame('', $tag->description);
+        $this->assertSame('', $tag->summary);
+        $this->assertNull($tag->parent);
+        $this->assertSame('', $tag->kind);
+    }
+
+    public function test_api_tag_accepts_all_32_fields(): void
+    {
+        $tag = new ApiTag('Billing', 'Billing ops', 'Handle billing', 'Finance', 'group');
+
+        $this->assertSame('Billing', $tag->name);
+        $this->assertSame('Billing ops', $tag->description);
+        $this->assertSame('Handle billing', $tag->summary);
+        $this->assertSame('Finance', $tag->parent);
+        $this->assertSame('group', $tag->kind);
+    }
+
+    public function test_api_stream_defaults_to_sse_media_type(): void
+    {
+        $stream = new ApiStream('App\\Events\\PaymentEvent');
+
+        $this->assertSame('App\\Events\\PaymentEvent', $stream->schema);
+        $this->assertSame(200, $stream->status);
+        $this->assertSame('text/event-stream', $stream->mediaType);
+        $this->assertSame('', $stream->description);
+    }
+
+    public function test_api_stream_constructor_round_trip(): void
+    {
+        $stream = new ApiStream('App\\Resources\\FooResource', 'application/jsonl', 202, 'JSONL feed');
+
+        $this->assertSame('App\\Resources\\FooResource', $stream->schema);
+        $this->assertSame('application/jsonl', $stream->mediaType);
+        $this->assertSame(202, $stream->status);
+        $this->assertSame('JSONL feed', $stream->description);
+    }
+
+    public function test_api_stream_is_not_repeatable_on_method(): void
+    {
+        $flags = (new \ReflectionClass(ApiStream::class))
+            ->getAttributes(\Attribute::class)[0]
+            ->newInstance();
+
+        $this->assertSame(0, $flags->flags & \Attribute::IS_REPEATABLE);
+        $this->assertSame(\Attribute::TARGET_METHOD, $flags->flags & \Attribute::TARGET_METHOD);
+    }
+
+    public function test_api_query_location_defaults_to_query(): void
+    {
+        $query = new ApiQuery('page');
+
+        $this->assertSame('query', $query->location);
+    }
+
+    public function test_api_query_location_accepts_querystring(): void
+    {
+        $query = new ApiQuery('filters', location: 'querystring');
+
+        $this->assertSame('querystring', $query->location);
     }
 }

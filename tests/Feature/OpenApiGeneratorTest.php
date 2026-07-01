@@ -9,11 +9,14 @@ use Botnetdobbs\Luminous\Extractors\ResourceExtractor;
 use Botnetdobbs\Luminous\Extractors\RouteExtractor;
 use Botnetdobbs\Luminous\Generator\ComponentsRegistry;
 use Botnetdobbs\Luminous\Generator\OpenApiGenerator;
+use Botnetdobbs\Luminous\Generator\TagRegistry;
 use Botnetdobbs\Luminous\LuminousServiceProvider;
 use Botnetdobbs\Luminous\Support\TypeMapper;
+use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\DanglingTagController;
 use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\PaymentController;
 use Illuminate\Events\Dispatcher;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Log;
 use Orchestra\Testbench\TestCase;
 
 class OpenApiGeneratorTest extends TestCase
@@ -48,11 +51,12 @@ class OpenApiGeneratorTest extends TestCase
     {
         $config = config('luminous');
         $registry ??= new ComponentsRegistry;
+        $tagRegistry = new TagRegistry;
         $enumEx = new EnumExtractor;
         $typeMapper = new TypeMapper($enumEx);
         $requestEx = new RequestExtractor($typeMapper, $registry, $enumEx);
         $resourceEx = new ResourceExtractor($typeMapper, $registry, $enumEx);
-        $controllerEx = new ControllerExtractor($requestEx, $resourceEx, $config);
+        $controllerEx = new ControllerExtractor($requestEx, $resourceEx, $tagRegistry, $config);
         $routeEx = new RouteExtractor($config, $this->app['router']);
 
         return new OpenApiGenerator(
@@ -60,14 +64,15 @@ class OpenApiGeneratorTest extends TestCase
             routeExtractor: $routeEx,
             controllerExtractor: $controllerEx,
             registry: $registry,
+            tagRegistry: $tagRegistry,
         );
     }
 
-    public function test_generates_valid_openapi_3_1_structure(): void
+    public function test_generates_valid_openapi_32_structure(): void
     {
         $spec = $this->makeGenerator()->generate();
 
-        $this->assertSame('3.1.0', $spec['openapi']);
+        $this->assertSame('3.2.0', $spec['openapi']);
         $this->assertArrayHasKey('info', $spec);
         $this->assertArrayHasKey('paths', $spec);
         $this->assertArrayHasKey('components', $spec);
@@ -94,7 +99,7 @@ class OpenApiGeneratorTest extends TestCase
         $this->assertArrayHasKey('ErrorResponse', $spec['components']['schemas']);
         $this->assertArrayHasKey('PaginationMeta', $spec['components']['schemas']);
 
-        // OpenAPI 3.1 uses type union. Not nullable: true
+        // OpenAPI 3.2 uses type union, not nullable: true
         $cursor = $spec['components']['schemas']['PaginationMeta']['properties']['cursor'];
         $this->assertSame(['string', 'null'], $cursor['type']);
     }
@@ -194,17 +199,43 @@ class OpenApiGeneratorTest extends TestCase
         $emptyRouter = new Router(new Dispatcher);
         $config = array_merge(config('luminous'), ['exclude_routes' => []]);
         $registry = new ComponentsRegistry;
+        $tagRegistry = new TagRegistry;
         $enumEx = new EnumExtractor;
         $typeMapper = new TypeMapper($enumEx);
         $requestEx = new RequestExtractor($typeMapper, $registry, $enumEx);
         $resourceEx = new ResourceExtractor($typeMapper, $registry, $enumEx);
-        $controllerEx = new ControllerExtractor($requestEx, $resourceEx, $config);
+        $controllerEx = new ControllerExtractor($requestEx, $resourceEx, $tagRegistry, $config);
         $routeEx = new RouteExtractor($config, $emptyRouter);
-        $generator = new OpenApiGenerator($config, $routeEx, $controllerEx, $registry);
+        $generator = new OpenApiGenerator($config, $routeEx, $controllerEx, $registry, $tagRegistry);
 
         $spec = $generator->generate();
 
         $this->assertEmpty($spec['paths'], 'Empty router must produce no paths');
+    }
+
+    public function test_dangling_parent_tag_logs_warning(): void
+    {
+        Log::spy();
+
+        $this->app['router']
+            ->get('/invoices', [DanglingTagController::class, 'index'])
+            ->name('invoices.index');
+
+        $this->makeGenerator()->generate();
+
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn ($msg) => str_contains((string) $msg, "'Invoices'")
+                && str_contains((string) $msg, "'Billing'")
+            );
+    }
+
+    public function test_self_url_appears_in_doc_when_configured(): void
+    {
+        $this->app['config']->set('luminous.self_url', 'https://api.example.com/openapi.json');
+
+        $spec = $this->makeGenerator()->generate();
+
+        $this->assertSame('https://api.example.com/openapi.json', $spec['$self']);
     }
 
     public function test_duplicate_operation_ids_get_numeric_suffix(): void

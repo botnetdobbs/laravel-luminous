@@ -42,7 +42,7 @@ class PaymentController
     #[ApiResponse(201, PaymentResource::class, 'Payment created')]
     #[ApiResponse(409, description: 'Idempotency conflict', ref: '#/components/schemas/ErrorResponse')]
     #[ApiResponse(422, description: 'Validation error', ref: '#/components/schemas/ErrorResponse')]
-    #[ApiExample('usd-payment', 'USD payment example', ['amount' => 10000, 'currency' => 'USD'])]
+    #[ApiExample('usd-payment', 'USD payment example', ['amount' => 10000, 'currency' => 'USD'], description: 'A payment of $100.00 in USD')]
     public function store(CreatePaymentRequest $request): JsonResponse
     {
         return response()->json([], 201);

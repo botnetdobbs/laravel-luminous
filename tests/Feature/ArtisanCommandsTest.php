@@ -53,7 +53,7 @@ class ArtisanCommandsTest extends TestCase
 
         $fresh = $cache->get();
         $this->assertNotNull($fresh);
-        $this->assertSame('3.1.0', $fresh['openapi']);
+        $this->assertSame('3.2.0', $fresh['openapi']);
 
         $cache->flush();
     }
@@ -68,14 +68,14 @@ class ArtisanCommandsTest extends TestCase
     public function test_export_json_to_stdout(): void
     {
         $this->artisan('luminous:export', ['--format' => 'json'])
-            ->expectsOutputToContain('"openapi":"3.1.0"')
+            ->expectsOutputToContain('"openapi":"3.2.0"')
             ->assertExitCode(0);
     }
 
     public function test_export_json_pretty_to_stdout(): void
     {
         $this->artisan('luminous:export', ['--format' => 'json', '--pretty' => true])
-            ->expectsOutputToContain('    "openapi": "3.1.0"')
+            ->expectsOutputToContain('    "openapi": "3.2.0"')
             ->assertExitCode(0);
     }
 
@@ -89,7 +89,7 @@ class ArtisanCommandsTest extends TestCase
 
         $this->assertFileExists($outputPath);
         $decoded = json_decode(file_get_contents($outputPath), true);
-        $this->assertSame('3.1.0', $decoded['openapi']);
+        $this->assertSame('3.2.0', $decoded['openapi']);
 
         @unlink($outputPath);
     }
@@ -129,7 +129,7 @@ class ArtisanCommandsTest extends TestCase
         $cache->put(['openapi' => 'STALE_VERSION', 'info' => ['title' => 'old'], 'paths' => [], 'components' => ['schemas' => []]]);
 
         $this->artisan('luminous:export', ['--format' => 'json', '--no-cache' => true])
-            ->expectsOutputToContain('"openapi":"3.1.0"')
+            ->expectsOutputToContain('"openapi":"3.2.0"')
             ->assertExitCode(0);
 
         $cache->flush();
@@ -157,7 +157,7 @@ class ArtisanCommandsTest extends TestCase
 
         $fresh = $cache->get();
         $this->assertNotNull($fresh);
-        $this->assertSame('3.1.0', $fresh['openapi']);
+        $this->assertSame('3.2.0', $fresh['openapi']);
 
         $cache->flush();
     }

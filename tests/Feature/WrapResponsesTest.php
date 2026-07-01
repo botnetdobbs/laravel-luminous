@@ -9,6 +9,7 @@ use Botnetdobbs\Luminous\Extractors\ResourceExtractor;
 use Botnetdobbs\Luminous\Extractors\RouteExtractor;
 use Botnetdobbs\Luminous\Generator\ComponentsRegistry;
 use Botnetdobbs\Luminous\Generator\OpenApiGenerator;
+use Botnetdobbs\Luminous\Generator\TagRegistry;
 use Botnetdobbs\Luminous\LuminousServiceProvider;
 use Botnetdobbs\Luminous\Support\TypeMapper;
 use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\PaymentController;
@@ -44,7 +45,8 @@ class WrapResponsesTest extends TestCase
         $typeMapper = new TypeMapper($enumEx);
         $requestEx = new RequestExtractor($typeMapper, $registry, $enumEx);
         $resourceEx = new ResourceExtractor($typeMapper, $registry, $enumEx);
-        $controllerEx = new ControllerExtractor($requestEx, $resourceEx, $config);
+        $tagRegistry = new TagRegistry;
+        $controllerEx = new ControllerExtractor($requestEx, $resourceEx, $tagRegistry, $config);
         $routeEx = new RouteExtractor($config, $this->app['router']);
 
         return new OpenApiGenerator(
@@ -52,6 +54,7 @@ class WrapResponsesTest extends TestCase
             routeExtractor: $routeEx,
             controllerExtractor: $controllerEx,
             registry: $registry,
+            tagRegistry: $tagRegistry,
         );
     }
 
