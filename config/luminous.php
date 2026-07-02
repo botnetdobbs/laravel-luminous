@@ -207,6 +207,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | External Documentation
+    |--------------------------------------------------------------------------
+    |
+    | A link to external documentation shown at the root of the generated spec.
+    | Set to an array with 'url' (required) and 'description' (optional),
+    | or leave null to omit the field entirely.
+    |
+    | Example:
+    |   'external_docs' => ['url' => 'https://docs.example.com', 'description' => 'Full docs'],
+    |
+    */
+    'external_docs' => null,
+
+    /*
+    |--------------------------------------------------------------------------
     | Self URL ($self)
     |--------------------------------------------------------------------------
     |

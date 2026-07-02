@@ -68,6 +68,10 @@ class OpenApiGenerator
             'components' => $this->buildComponents(),
         ];
 
+        if ($externalDocs = $this->config['external_docs'] ?? null) {
+            $doc['externalDocs'] = $externalDocs;
+        }
+
         if ($selfUrl = $this->config['self_url'] ?? null) {
             $doc['$self'] = $selfUrl;
         }

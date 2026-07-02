@@ -4,6 +4,7 @@ namespace Botnetdobbs\Luminous\Tests\Unit;
 
 use Botnetdobbs\Luminous\Attributes\ApiBody;
 use Botnetdobbs\Luminous\Attributes\ApiComposedOf;
+use Botnetdobbs\Luminous\Attributes\ApiExample;
 use Botnetdobbs\Luminous\Attributes\ApiHeader;
 use Botnetdobbs\Luminous\Attributes\ApiIgnore;
 use Botnetdobbs\Luminous\Attributes\ApiItems;
@@ -13,6 +14,7 @@ use Botnetdobbs\Luminous\Attributes\ApiParam;
 use Botnetdobbs\Luminous\Attributes\ApiProperty;
 use Botnetdobbs\Luminous\Attributes\ApiQuery;
 use Botnetdobbs\Luminous\Attributes\ApiResponse;
+use Botnetdobbs\Luminous\Attributes\ApiResponseHeader;
 use Botnetdobbs\Luminous\Attributes\ApiSecurity;
 use Botnetdobbs\Luminous\Attributes\ApiStream;
 use Botnetdobbs\Luminous\Attributes\ApiTag;
@@ -271,5 +273,98 @@ class AttributesTest extends TestCase
         $query = new ApiQuery('filters', location: 'querystring');
 
         $this->assertSame('querystring', $query->location);
+    }
+
+    public function test_api_example_data_value_with_non_empty_value_throws(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('mutually exclusive');
+
+        new ApiExample('ex', value: ['key' => 'val'], dataValue: ['key' => 'val']);
+    }
+
+    public function test_api_example_serialized_value_with_non_empty_value_throws(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('mutually exclusive');
+
+        new ApiExample('ex', value: 'raw', serializedValue: 'raw');
+    }
+
+    public function test_api_example_serialized_value_with_external_value_throws(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('mutually exclusive');
+
+        new ApiExample('ex', externalValue: 'https://example.com/ex.json', serializedValue: 'raw');
+    }
+
+    public function test_api_example_external_value_emitted_in_to_example_object(): void
+    {
+        $example = new ApiExample('ex', summary: 'An example', externalValue: 'https://example.com/ex.json');
+
+        $obj = $example->toExampleObject();
+
+        $this->assertSame('https://example.com/ex.json', $obj['externalValue']);
+        $this->assertArrayNotHasKey('value', $obj);
+    }
+
+    public function test_api_example_data_value_emitted_in_to_example_object(): void
+    {
+        $example = new ApiExample('ex', dataValue: ['id' => 1]);
+
+        $obj = $example->toExampleObject();
+
+        $this->assertSame(['id' => 1], $obj['dataValue']);
+        $this->assertArrayNotHasKey('value', $obj);
+    }
+
+    public function test_api_example_serialized_value_takes_priority(): void
+    {
+        $example = new ApiExample('ex', serializedValue: 'id=1&name=foo');
+
+        $obj = $example->toExampleObject();
+
+        $this->assertSame('id=1&name=foo', $obj['serializedValue']);
+        $this->assertArrayNotHasKey('value', $obj);
+        $this->assertArrayNotHasKey('dataValue', $obj);
+    }
+
+    public function test_api_response_header_constructor_round_trip(): void
+    {
+        $header = new ApiResponseHeader(201, 'Location', 'string', 'Created resource URL', 'uri', true);
+
+        $this->assertSame(201, $header->status);
+        $this->assertSame('Location', $header->name);
+        $this->assertSame('string', $header->type);
+        $this->assertSame('Created resource URL', $header->description);
+        $this->assertSame('uri', $header->format);
+        $this->assertTrue($header->required);
+    }
+
+    public function test_api_response_header_defaults(): void
+    {
+        $header = new ApiResponseHeader(200, 'X-Request-Id');
+
+        $this->assertSame('string', $header->type);
+        $this->assertSame('', $header->description);
+        $this->assertSame('', $header->format);
+        $this->assertFalse($header->required);
+    }
+
+    public function test_api_operation_external_docs_defaults_to_null(): void
+    {
+        $op = new ApiOperation('summary');
+
+        $this->assertNull($op->externalDocsUrl);
+        $this->assertSame('', $op->externalDocsDescription);
+    }
+
+    public function test_api_tag_external_docs_defaults_to_null(): void
+    {
+        $tag = new ApiTag('Payments');
+
+        $this->assertNull($tag->externalDocsUrl);
+        $this->assertSame('', $tag->externalDocsDescription);
     }
 }

@@ -584,4 +584,50 @@ class ControllerExtractorTest extends LuminousTestCase
         $this->assertCount(1, $tagRegistry->all(),
             'duplicate tag names must be collapsed into one object');
     }
+
+    public function test_response_headers_appear_on_correct_status(): void
+    {
+        $extractor = $this->makeExtractor();
+        $route = new ExtractedRoute('get', '/test', TestAttributeController::class, 'rateLimited', 'test.rate', []);
+
+        $operation = $extractor->extract($route);
+
+        $headers = $operation['responses']['200']['headers'] ?? [];
+        $this->assertArrayHasKey('X-Rate-Limit-Remaining', $headers);
+        $this->assertSame('integer', $headers['X-Rate-Limit-Remaining']['schema']['type']);
+        $this->assertSame('Remaining requests in window', $headers['X-Rate-Limit-Remaining']['description']);
+        $this->assertArrayHasKey('X-Request-Id', $headers);
+        $this->assertSame('uuid', $headers['X-Request-Id']['schema']['format']);
+    }
+
+    public function test_response_header_on_missing_status_is_skipped_with_warning(): void
+    {
+        $extractor = $this->makeExtractor();
+        $route = new ExtractedRoute('get', '/test', TestAttributeController::class, 'orphanResponseHeader', 'test.orphan', []);
+
+        $warnings = [];
+        Log::shouldReceive('warning')
+            ->once()
+            ->withArgs(function (string $msg) use (&$warnings) {
+                $warnings[] = $msg;
+
+                return str_contains($msg, 'X-Orphan') && str_contains($msg, '999');
+            });
+
+        $operation = $extractor->extract($route);
+
+        $this->assertArrayNotHasKey('headers', $operation['responses']['200'] ?? []);
+    }
+
+    public function test_api_operation_external_docs_emitted(): void
+    {
+        $extractor = $this->makeExtractor();
+        $route = new ExtractedRoute('get', '/test', TestAttributeController::class, 'rateLimited', 'test.rate', []);
+
+        $operation = $extractor->extract($route);
+
+        $this->assertArrayHasKey('externalDocs', $operation);
+        $this->assertSame('https://example.com/docs', $operation['externalDocs']['url']);
+        $this->assertSame('Rate limit docs', $operation['externalDocs']['description']);
+    }
 }

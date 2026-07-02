@@ -263,4 +263,25 @@ class OpenApiGeneratorTest extends LuminousTestCase
         $this->assertNotSame('', $v1Id);
         $this->assertSame($v1Id.'_2', $v2Id);
     }
+
+    public function test_root_external_docs_emitted_when_configured(): void
+    {
+        $this->app['config']->set('luminous.external_docs', [
+            'url' => 'https://docs.example.com',
+            'description' => 'Full API documentation',
+        ]);
+
+        $spec = $this->makeGenerator()->generate();
+
+        $this->assertArrayHasKey('externalDocs', $spec);
+        $this->assertSame('https://docs.example.com', $spec['externalDocs']['url']);
+        $this->assertSame('Full API documentation', $spec['externalDocs']['description']);
+    }
+
+    public function test_root_external_docs_omitted_when_null(): void
+    {
+        $spec = $this->makeGenerator()->generate();
+
+        $this->assertArrayNotHasKey('externalDocs', $spec);
+    }
 }

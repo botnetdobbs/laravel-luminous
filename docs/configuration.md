@@ -320,6 +320,24 @@ List every server your API runs on. All three UIs show a dropdown so consumers c
 
 ---
 
+## External documentation
+
+Link to external docs from the root of the spec. UIs that support it show this as a
+link at the top of the page, separate from individual endpoint links.
+
+```php
+'external_docs' => [
+    'url'         => 'https://docs.example.com',
+    'description' => 'Full API documentation',
+],
+```
+
+Leave it `null` (the default) to omit the field entirely. Individual operations and
+tags can also carry their own external docs links via `externalDocsUrl` on
+`#[ApiOperation]` and `#[ApiTag]`. See [Documenting Controllers](controllers.md).
+
+---
+
 ## Document identity
 
 OAS 3.2 uses JSON Schema 2020-12 reference resolution. Without `$self`, resolvers fall back to the retrieval URI (the URL the document was fetched from). This breaks when the spec is served through a proxy, CDN, or any URL that differs from its canonical location. Setting `$self` makes `$ref` resolution deterministic regardless of how the document is retrieved.

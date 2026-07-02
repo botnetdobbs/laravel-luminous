@@ -57,6 +57,13 @@ class ControllerExtractor
                 $operation['description'] = $apiOp->description;
             }
             $operationId = $apiOp->operationId;
+            if ($apiOp->externalDocsUrl !== null) {
+                $externalDocs = ['url' => $apiOp->externalDocsUrl];
+                if ($apiOp->externalDocsDescription !== '') {
+                    $externalDocs['description'] = $apiOp->externalDocsDescription;
+                }
+                $operation['externalDocs'] = $externalDocs;
+            }
         } else {
             $operation['summary'] = ucfirst($route->methodName);
         }
@@ -121,6 +128,9 @@ class ControllerExtractor
                     'summary' => $tag->summary ?: null,
                     'parent' => $tag->parent,
                     'kind' => $tag->kind ?: null,
+                    'externalDocs' => $tag->externalDocsUrl !== null
+                        ? collect(['url' => $tag->externalDocsUrl, 'description' => $tag->externalDocsDescription ?: null])->filter()->all()
+                        : null,
                 ])->filter(fn ($v) => $v !== null)->all(),
                 []
             ))

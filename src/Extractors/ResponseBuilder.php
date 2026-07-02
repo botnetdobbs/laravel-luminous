@@ -4,6 +4,7 @@ namespace Botnetdobbs\Luminous\Extractors;
 
 use Botnetdobbs\Luminous\Attributes\ApiComposedOf;
 use Botnetdobbs\Luminous\Attributes\ApiResponse;
+use Botnetdobbs\Luminous\Attributes\ApiResponseHeader;
 use Botnetdobbs\Luminous\Attributes\ApiStream;
 
 class ResponseBuilder
@@ -122,6 +123,33 @@ class ResponseBuilder
                 }
                 $responses[$status]['content'][$example->mediaType]['examples'][$example->name] = $example->toExampleObject();
             }
+        }
+
+        foreach ($methodRef->getAttributes(ApiResponseHeader::class) as $attr) {
+            $header = $attr->newInstance();
+            $status = (string) $header->status;
+
+            if (! isset($responses[$status])) {
+                logger()->warning(
+                    "Luminous: ApiResponseHeader '{$header->name}' targets status {$status} ".
+                    "which is not declared on {$methodRef->class}::{$methodRef->name}. Header was skipped."
+                );
+
+                continue;
+            }
+
+            $headerObj = ['schema' => ['type' => $header->type]];
+            if ($header->format !== '') {
+                $headerObj['schema']['format'] = $header->format;
+            }
+            if ($header->description !== '') {
+                $headerObj['description'] = $header->description;
+            }
+            if ($header->required) {
+                $headerObj['required'] = true;
+            }
+
+            $responses[$status]['headers'][$header->name] = $headerObj;
         }
 
         return $responses;

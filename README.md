@@ -177,10 +177,11 @@ That is the whole picture. The individual docs below go into every detail.
 
 | Attribute | Where it goes | What it does |
 |-----------|---------------|-------------|
-| `#[ApiOperation]` | Method | Summary, description, and optional operationId |
-| `#[ApiTag]` | Class or Method | Group endpoints in the Swagger UI sidebar. Supports `summary`, `parent`, and `kind` for hierarchical grouping |
+| `#[ApiOperation]` | Method | Summary, description, optional operationId, and optional `externalDocsUrl` link |
+| `#[ApiTag]` | Class or Method | Group endpoints in the sidebar. Supports `summary`, `parent`, `kind` for hierarchical grouping, and `externalDocsUrl` |
 | `#[ApiBody]` | Method | Override the auto-detected request class or add a description |
 | `#[ApiResponse]` | Method | Document a response status code (repeatable) |
+| `#[ApiResponseHeader]` | Method | Document a response header on a specific status code (repeatable) |
 | `#[ApiParam]` | Method | Document a path parameter, including route model bound params (repeatable). Supports `deprecated` |
 | `#[ApiQuery]` | Method | Document a query string parameter (repeatable). Supports `deprecated` and `location` for `in: querystring` parameters |
 | `#[ApiStream]` | Method | Document a streaming endpoint (SSE, JSONL). Emits `itemSchema` instead of `schema` |
@@ -189,7 +190,7 @@ That is the whole picture. The individual docs below go into every detail.
 | `#[ApiNoSecurity]` | Method | Mark an endpoint as requiring no authentication |
 | `#[ApiDeprecated]` | Method | Mark an endpoint as deprecated with a reason and replacement |
 | `#[ApiIgnore]` | Class or Method | Exclude from documentation entirely |
-| `#[ApiExample]` | Method | Named request or response example (repeatable). Supports `description` for longer explanatory text alongside `summary` |
+| `#[ApiExample]` | Method | Named request or response example (repeatable). Supports `externalValue`, `dataValue`, and `serializedValue` for non-JSON targets |
 | `#[ApiComposedOf]` | Method | oneOf / anyOf / allOf for polymorphic responses (repeatable) |
 | `#[ApiShape]` | Resource, FormRequest, or DTO class | Marks a class as using the static `schema()` method |
 | `#[ApiProperty]` | Property | Documents a single property on a resource or DTO |

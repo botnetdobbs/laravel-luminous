@@ -9,5 +9,7 @@ final class ApiOperation
         public readonly string $summary,
         public readonly string $description = '',
         public readonly ?string $operationId = null,
+        public readonly ?string $externalDocsUrl = null,
+        public readonly string $externalDocsDescription = '',
     ) {}
 }

@@ -35,6 +35,14 @@ can set your own if you need a specific identifier for SDK generation or API cli
 public function store(CreatePaymentRequest $request): JsonResponse {}
 ```
 
+Use `externalDocsUrl` to link out to related documentation. UIs that support it (Redoc
+shows it next to the operation heading) will render it as a clickable link.
+
+```php
+#[ApiOperation('Create a payment', externalDocsUrl: 'https://docs.example.com/payments', externalDocsDescription: 'Full payment guide')]
+public function store(CreatePaymentRequest $request): JsonResponse {}
+```
+
 ---
 
 ## Grouping with tags
@@ -90,6 +98,14 @@ class PaymentController extends Controller {}
 class RefundController extends Controller {}
 ```
 
+Tags also accept `externalDocsUrl` for a link to external documentation about that tag
+group as a whole:
+
+```php
+#[ApiTag('Payments', externalDocsUrl: 'https://docs.example.com/payments', externalDocsDescription: 'Payment concepts')]
+class PaymentController extends Controller {}
+```
+
 If you reference a `parent` that is not declared anywhere, Luminous logs a warning
 at generation time and continues. It will not create the parent for you.
 
@@ -134,6 +150,34 @@ public function index(): JsonResponse {}
 `collection: true` documents the response as an array of the resource.
 `paginated: true` does the same but also adds the pagination envelope
 (`cursor`, `has_more`, `total`) to the documented response.
+
+---
+
+## Documenting response headers
+
+`Content-Type` is already captured automatically from the response schema. You do not
+need to document it. `#[ApiResponseHeader]` is for the niche headers your endpoint
+sends on top of that: rate limit counters, request trace IDs, redirect locations, and
+similar out-of-band metadata.
+
+```php
+use Botnetdobbs\Luminous\Attributes\ApiResponseHeader;
+
+#[ApiResponse(200, PaymentResource::class, 'OK')]
+#[ApiResponseHeader(200, 'X-Rate-Limit-Remaining', 'integer', 'Requests remaining in the current window')]
+#[ApiResponseHeader(200, 'X-Request-Id', 'string', 'Unique identifier for this request', format: 'uuid')]
+public function index(Request $request): JsonResponse {}
+```
+
+The first argument is the status code the header belongs to. It must match a status
+code declared with `#[ApiResponse]`. If it does not, Luminous logs a warning and
+skips the header.
+
+```php
+#[ApiResponse(201, PaymentResource::class, 'Created')]
+#[ApiResponseHeader(201, 'Location', 'string', 'URL of the created resource', format: 'uri', required: true)]
+public function store(CreatePaymentRequest $request): JsonResponse {}
+```
 
 ---
 
@@ -293,6 +337,23 @@ public function store(CreatePaymentRequest $request): JsonResponse {}
 The second argument (`summary`) is the short label shown in the dropdown. The
 `description` argument is for longer text that appears below the summary when a
 consumer expands the example.
+
+For non-JSON media types, use `externalValue` to point to a file instead of inlining
+the example value, or use `dataValue` and `serializedValue` for structured and
+wire-format content respectively. These are the OAS 3.2 preferred alternatives to
+`value` for non-JSON targets. Only one of `value`, `externalValue`, `dataValue`, or
+`serializedValue` can be set per example.
+
+```php
+// Link to an external example file instead of inlining it
+#[ApiExample('csv-export', 'CSV export', externalValue: 'https://docs.example.com/examples/export.csv', type: 'response', status: 200, mediaType: 'text/csv')]
+
+// Structured data for a non-JSON format
+#[ApiExample('form-post', 'Form submission', dataValue: ['amount' => 10000, 'currency' => 'USD'], mediaType: 'application/x-www-form-urlencoded')]
+
+// Wire-format string for form-encoded or multipart content
+#[ApiExample('encoded', 'URL-encoded body', serializedValue: 'amount=10000&currency=USD', mediaType: 'application/x-www-form-urlencoded')]
+```
 
 **Response example** (use `type: 'response'` and `status:` to point to a specific
 `#[ApiResponse]`):

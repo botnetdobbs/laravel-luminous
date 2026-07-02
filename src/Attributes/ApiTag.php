@@ -11,5 +11,7 @@ final class ApiTag
         public readonly string $summary = '',
         public readonly ?string $parent = null,
         public readonly string $kind = '',
+        public readonly ?string $externalDocsUrl = null,
+        public readonly string $externalDocsDescription = '',
     ) {}
 }

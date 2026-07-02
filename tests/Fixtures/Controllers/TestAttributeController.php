@@ -12,6 +12,7 @@ use Botnetdobbs\Luminous\Attributes\ApiOperation;
 use Botnetdobbs\Luminous\Attributes\ApiParam;
 use Botnetdobbs\Luminous\Attributes\ApiQuery;
 use Botnetdobbs\Luminous\Attributes\ApiResponse;
+use Botnetdobbs\Luminous\Attributes\ApiResponseHeader;
 use Botnetdobbs\Luminous\Attributes\ApiSecurity;
 use Botnetdobbs\Luminous\Attributes\ApiStream;
 use Botnetdobbs\Luminous\Attributes\ApiTag;
@@ -76,4 +77,14 @@ class TestAttributeController
     #[ApiParam('id', 'Deprecated path param', deprecated: true)]
     #[ApiResponse(200, description: 'OK')]
     public function deprecatedPathParam(): void {}
+
+    #[ApiOperation('Rate limited endpoint', externalDocsUrl: 'https://example.com/docs', externalDocsDescription: 'Rate limit docs')]
+    #[ApiResponse(200, description: 'OK')]
+    #[ApiResponseHeader(200, 'X-Rate-Limit-Remaining', 'integer', 'Remaining requests in window')]
+    #[ApiResponseHeader(200, 'X-Request-Id', 'string', 'Unique request identifier', format: 'uuid')]
+    public function rateLimited(): void {}
+
+    #[ApiResponse(200, description: 'OK')]
+    #[ApiResponseHeader(999, 'X-Orphan', 'string', 'Header for undeclared status')]
+    public function orphanResponseHeader(): void {}
 }
