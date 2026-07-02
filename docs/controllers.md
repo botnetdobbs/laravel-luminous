@@ -252,6 +252,23 @@ The rule is simple: if the URL has `{something}`, you document `something`. What
 PHP method receives (a string, an integer, a model, or anything else) does not affect
 the path parameter definition.
 
+### Serialization style for path parameters
+
+Use `style` when a path parameter uses label or matrix serialization instead of the
+default simple style.
+
+```php
+// ;id=123 (matrix style)
+#[ApiParam('id', 'Payment ID', type: 'integer', style: 'matrix')]
+public function show(int $id): JsonResponse {}
+
+// .v3 (label style, used by some versioned APIs)
+#[ApiParam('version', 'API version', style: 'label')]
+public function versioned(string $version): JsonResponse {}
+```
+
+Valid `style` values for path parameters: `simple` (default), `label`, `matrix`.
+
 ### Deprecated path parameters
 
 Mark a path parameter as deprecated when you are phasing it out but cannot remove it
@@ -285,6 +302,27 @@ public function index(Request $request): JsonResponse {}
 public function index(Request $request): JsonResponse {}
 ```
 
+### Serialization style
+
+Use `style` and `explode` when your query parameter uses a non-default serialization
+format. The most common case is `style: 'deepObject'` for nested objects.
+
+```php
+// ?filter[status]=active&filter[amount_gte]=1000
+#[ApiQuery('filter', 'Filter criteria', style: 'deepObject', explode: true)]
+public function index(Request $request): JsonResponse {}
+
+// ?ids=1,2,3 (pipe-delimited instead of comma-separated)
+#[ApiQuery('ids', 'Comma-separated IDs', style: 'pipeDelimited')]
+public function index(Request $request): JsonResponse {}
+```
+
+Valid `style` values for query parameters: `form` (default), `spaceDelimited`,
+`pipeDelimited`, `deepObject`. Luminous logs a warning and ignores an invalid value.
+
+`style` and `explode` are not valid on `location: 'querystring'` parameters (which
+use content-based serialization). They are silently omitted if set there.
+
 ### Whole-querystring parameters
 
 Some APIs accept a structured value as the entire query string rather than individual
@@ -310,6 +348,15 @@ use Botnetdobbs\Luminous\Attributes\ApiHeader;
 #[ApiHeader('Idempotency-Key', 'UUID v4. Same key returns the cached response without re-executing.', required: true, format: 'uuid')]
 #[ApiHeader('X-Tenant-ID', 'Your organisation identifier')]
 public function store(CreatePaymentRequest $request): JsonResponse {}
+```
+
+The only valid `style` for request headers is `simple` (the default). You only need
+to set it explicitly if you also want to set `explode: true` to signal that an object
+header value uses key=value pairs rather than comma-separated list encoding.
+
+```php
+#[ApiHeader('X-Filters', 'Structured filter object', style: 'simple', explode: true)]
+public function index(Request $request): JsonResponse {}
 ```
 
 ---

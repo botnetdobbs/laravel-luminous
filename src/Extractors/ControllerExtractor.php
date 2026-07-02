@@ -20,6 +20,14 @@ class ControllerExtractor
 {
     private const ALLOWED_LOCATIONS = ['query', 'querystring', 'header', 'path', 'cookie'];
 
+    private const QUERY_ALLOWED_STYLES = ['form', 'spaceDelimited', 'pipeDelimited', 'deepObject'];
+
+    private const PARAM_ALLOWED_STYLES = ['simple', 'label', 'matrix'];
+
+    private const HEADER_ALLOWED_STYLES = ['simple'];
+
+    private const COOKIE_ALLOWED_STYLES = ['form'];
+
     public function __construct(
         private readonly RequestExtractor $requestExtractor,
         private readonly TagRegistry $tagRegistry,
@@ -204,6 +212,7 @@ class ControllerExtractor
             if ($param->deprecated) {
                 $entry['deprecated'] = true;
             }
+            $this->applyStyleAndExplode($entry, $param->name, $param->style, $param->explode, self::PARAM_ALLOWED_STYLES, 'ApiParam', 'path');
             $entries[] = $entry;
         }
 
@@ -292,6 +301,15 @@ class ControllerExtractor
             if ($query->deprecated) {
                 $entry['deprecated'] = true;
             }
+            if ($location !== 'querystring') {
+                $allowedStyles = match ($location) {
+                    'cookie' => self::COOKIE_ALLOWED_STYLES,
+                    'header' => self::HEADER_ALLOWED_STYLES,
+                    'path' => self::PARAM_ALLOWED_STYLES,
+                    default => self::QUERY_ALLOWED_STYLES,
+                };
+                $this->applyStyleAndExplode($entry, $query->name, $query->style, $query->explode, $allowedStyles, 'ApiQuery', $location);
+            }
             $entries[] = $entry;
         }
 
@@ -321,10 +339,28 @@ class ControllerExtractor
             if ($header->description !== '') {
                 $entry['description'] = $header->description;
             }
+            $this->applyStyleAndExplode($entry, $header->name, $header->style, $header->explode, self::HEADER_ALLOWED_STYLES, 'ApiHeader', 'header');
             $entries[] = $entry;
         }
 
         return $entries;
+    }
+
+    private function applyStyleAndExplode(array &$entry, string $name, ?string $style, ?bool $explode, array $allowed, string $attrClass, string $location): void
+    {
+        if ($style !== null) {
+            if (in_array($style, $allowed, true)) {
+                $entry['style'] = $style;
+            } else {
+                logger()->warning(
+                    "Luminous: {$attrClass} '{$name}' has invalid style '{$style}' for location '{$location}'. ".
+                    'Allowed: '.implode(', ', $allowed).'. Ignored.'
+                );
+            }
+        }
+        if ($explode !== null) {
+            $entry['explode'] = $explode;
+        }
     }
 
     private function buildRequestBody(\ReflectionMethod $methodRef): ?array

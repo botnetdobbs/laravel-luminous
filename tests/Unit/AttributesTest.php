@@ -367,4 +367,52 @@ class AttributesTest extends TestCase
         $this->assertNull($tag->externalDocsUrl);
         $this->assertSame('', $tag->externalDocsDescription);
     }
+
+    public function test_api_query_style_defaults_to_null(): void
+    {
+        $query = new ApiQuery('filter');
+
+        $this->assertNull($query->style);
+        $this->assertNull($query->explode);
+    }
+
+    public function test_api_query_style_and_explode_round_trip(): void
+    {
+        $query = new ApiQuery('ids', style: 'deepObject', explode: true);
+
+        $this->assertSame('deepObject', $query->style);
+        $this->assertTrue($query->explode);
+    }
+
+    public function test_api_param_style_defaults_to_null(): void
+    {
+        $param = new ApiParam('id');
+
+        $this->assertNull($param->style);
+        $this->assertNull($param->explode);
+    }
+
+    public function test_api_param_style_and_explode_round_trip(): void
+    {
+        $param = new ApiParam('slug', style: 'label', explode: false);
+
+        $this->assertSame('label', $param->style);
+        $this->assertFalse($param->explode);
+    }
+
+    public function test_api_header_style_defaults_to_null(): void
+    {
+        $header = new ApiHeader('X-Trace');
+
+        $this->assertNull($header->style);
+        $this->assertNull($header->explode);
+    }
+
+    public function test_api_header_style_and_explode_round_trip(): void
+    {
+        $header = new ApiHeader('X-Ids', style: 'simple', explode: true);
+
+        $this->assertSame('simple', $header->style);
+        $this->assertTrue($header->explode);
+    }
 }

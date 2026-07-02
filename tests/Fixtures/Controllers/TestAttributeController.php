@@ -87,4 +87,36 @@ class TestAttributeController
     #[ApiResponse(200, description: 'OK')]
     #[ApiResponseHeader(999, 'X-Orphan', 'string', 'Header for undeclared status')]
     public function orphanResponseHeader(): void {}
+
+    #[ApiQuery('ids', 'List of IDs', style: 'deepObject', explode: true)]
+    #[ApiResponse(200, description: 'OK')]
+    public function queryWithDeepObject(): void {}
+
+    #[ApiQuery('tags', 'Tag filter', style: 'badStyle')]
+    #[ApiResponse(200, description: 'OK')]
+    public function queryWithInvalidStyle(): void {}
+
+    #[ApiQuery('page', 'Page number', type: 'integer', explode: false)]
+    #[ApiResponse(200, description: 'OK')]
+    public function queryWithExplodeFalse(): void {}
+
+    #[ApiParam('slug', 'Resource slug', style: 'label')]
+    #[ApiResponse(200, description: 'OK')]
+    public function paramWithLabelStyle(): void {}
+
+    #[ApiHeader('X-Trace-Id', style: 'simple')]
+    #[ApiResponse(200, description: 'OK')]
+    public function headerWithSimpleStyle(): void {}
+
+    #[ApiQuery('filter', 'Complex filter', location: 'querystring', style: 'form', explode: true)]
+    #[ApiResponse(200, description: 'OK')]
+    public function queryWithQuerystringAndStyle(): void {}
+
+    #[ApiQuery('token', 'Auth cookie', location: 'cookie', style: 'pipeDelimited')]
+    #[ApiResponse(200, description: 'OK')]
+    public function queryWithCookieInvalidStyle(): void {}
+
+    #[ApiQuery('session', 'Session cookie', location: 'cookie', style: 'form')]
+    #[ApiResponse(200, description: 'OK')]
+    public function queryWithCookieValidStyle(): void {}
 }

@@ -133,6 +133,21 @@ class RouteExtractorTest extends LuminousTestCase
         $this->assertNotContains('pong', $names);
     }
 
+    public function test_query_method_route_passes_through(): void
+    {
+        try {
+            $this->app['router']->addRoute(['QUERY'], '/query-test', [TestAttributeController::class, 'store']);
+        } catch (\Throwable) {
+            $this->markTestSkipped('Laravel router does not support the QUERY HTTP verb.');
+        }
+
+        $routes = $this->makeExtractor()->extract();
+
+        $found = collect($routes)->first(fn (ExtractedRoute $r) => $r->path === '/query-test');
+        $this->assertNotNull($found, 'QUERY-method route must appear in extracted routes');
+        $this->assertSame('query', $found->httpMethod);
+    }
+
     public function test_ignore_attribute_reflection_failure_logs_warning_and_excludes_route(): void
     {
         Log::spy();

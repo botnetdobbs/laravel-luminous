@@ -14,5 +14,7 @@ final class ApiQuery
         public readonly array $enum = [],
         public readonly bool $deprecated = false,
         public readonly string $location = 'query',
+        public readonly ?string $style = null,
+        public readonly ?bool $explode = null,
     ) {}
 }

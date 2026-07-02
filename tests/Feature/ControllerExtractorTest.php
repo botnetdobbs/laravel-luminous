@@ -630,4 +630,112 @@ class ControllerExtractorTest extends LuminousTestCase
         $this->assertSame('https://example.com/docs', $operation['externalDocs']['url']);
         $this->assertSame('Rate limit docs', $operation['externalDocs']['description']);
     }
+
+    public function test_api_query_style_deep_object_emitted(): void
+    {
+        $extractor = $this->makeExtractor();
+        $route = new ExtractedRoute('get', '/test', TestAttributeController::class, 'queryWithDeepObject', 'test.deep', []);
+
+        $operation = $extractor->extract($route);
+
+        $param = collect($operation['parameters'])->firstWhere('name', 'ids');
+        $this->assertNotNull($param);
+        $this->assertSame('deepObject', $param['style']);
+        $this->assertTrue($param['explode']);
+    }
+
+    public function test_api_query_invalid_style_logs_warning_and_omits_style(): void
+    {
+        Log::shouldReceive('warning')
+            ->once()
+            ->withArgs(fn (string $msg) => str_contains($msg, 'badStyle') && str_contains($msg, 'tags'));
+
+        $extractor = $this->makeExtractor();
+        $route = new ExtractedRoute('get', '/test', TestAttributeController::class, 'queryWithInvalidStyle', 'test.badstyle', []);
+
+        $operation = $extractor->extract($route);
+
+        $param = collect($operation['parameters'])->firstWhere('name', 'tags');
+        $this->assertNotNull($param);
+        $this->assertArrayNotHasKey('style', $param);
+    }
+
+    public function test_explode_false_emitted_on_query(): void
+    {
+        $extractor = $this->makeExtractor();
+        $route = new ExtractedRoute('get', '/test', TestAttributeController::class, 'queryWithExplodeFalse', 'test.explode', []);
+
+        $operation = $extractor->extract($route);
+
+        $param = collect($operation['parameters'])->firstWhere('name', 'page');
+        $this->assertNotNull($param);
+        $this->assertFalse($param['explode']);
+        $this->assertArrayNotHasKey('style', $param);
+    }
+
+    public function test_api_param_style_label_emitted(): void
+    {
+        $extractor = $this->makeExtractor();
+        $route = new ExtractedRoute('get', '/test/{slug}', TestAttributeController::class, 'paramWithLabelStyle', 'test.label', []);
+
+        $operation = $extractor->extract($route);
+
+        $param = collect($operation['parameters'])->firstWhere('name', 'slug');
+        $this->assertNotNull($param);
+        $this->assertSame('label', $param['style']);
+    }
+
+    public function test_api_header_style_simple_emitted(): void
+    {
+        $extractor = $this->makeExtractor();
+        $route = new ExtractedRoute('get', '/test', TestAttributeController::class, 'headerWithSimpleStyle', 'test.header', []);
+
+        $operation = $extractor->extract($route);
+
+        $param = collect($operation['parameters'])->firstWhere('name', 'X-Trace-Id');
+        $this->assertNotNull($param);
+        $this->assertSame('simple', $param['style']);
+    }
+
+    public function test_style_and_explode_not_emitted_for_querystring_location(): void
+    {
+        $extractor = $this->makeExtractor();
+        $route = new ExtractedRoute('get', '/test', TestAttributeController::class, 'queryWithQuerystringAndStyle', 'test.qs', []);
+
+        $operation = $extractor->extract($route);
+
+        $param = collect($operation['parameters'])->firstWhere('name', 'filter');
+        $this->assertNotNull($param);
+        $this->assertArrayNotHasKey('style', $param);
+        $this->assertArrayNotHasKey('explode', $param);
+        $this->assertArrayHasKey('content', $param);
+    }
+
+    public function test_api_query_invalid_style_for_cookie_location_warns_and_omits(): void
+    {
+        Log::shouldReceive('warning')
+            ->once()
+            ->withArgs(fn (string $msg) => str_contains($msg, 'pipeDelimited') && str_contains($msg, 'cookie'));
+
+        $extractor = $this->makeExtractor();
+        $route = new ExtractedRoute('get', '/test', TestAttributeController::class, 'queryWithCookieInvalidStyle', 'test.cookie', []);
+
+        $operation = $extractor->extract($route);
+
+        $param = collect($operation['parameters'])->firstWhere('name', 'token');
+        $this->assertNotNull($param);
+        $this->assertArrayNotHasKey('style', $param);
+    }
+
+    public function test_api_query_valid_style_for_cookie_location_emitted(): void
+    {
+        $extractor = $this->makeExtractor();
+        $route = new ExtractedRoute('get', '/test', TestAttributeController::class, 'queryWithCookieValidStyle', 'test.cookieok', []);
+
+        $operation = $extractor->extract($route);
+
+        $param = collect($operation['parameters'])->firstWhere('name', 'session');
+        $this->assertNotNull($param);
+        $this->assertSame('form', $param['style']);
+    }
 }

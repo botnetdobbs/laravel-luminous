@@ -284,4 +284,73 @@ class OpenApiGeneratorTest extends LuminousTestCase
 
         $this->assertArrayNotHasKey('externalDocs', $spec);
     }
+
+    public function test_non_standard_http_method_placed_under_additional_operations(): void
+    {
+        try {
+            $this->app['router']->addRoute(['LINK'], '/link-test', [PaymentController::class, 'index'])
+                ->name('link.test');
+        } catch (\Throwable) {
+            $this->markTestSkipped('Laravel router does not support the LINK HTTP verb.');
+        }
+
+        $spec = $this->makeGenerator()->generate();
+
+        $this->assertArrayHasKey('/link-test', $spec['paths']);
+        $pathItem = $spec['paths']['/link-test'];
+        $this->assertArrayHasKey('additionalOperations', $pathItem);
+        $this->assertArrayHasKey('link', $pathItem['additionalOperations']);
+        $this->assertArrayNotHasKey('link', collect($pathItem)->except('additionalOperations')->all());
+    }
+
+    public function test_standard_http_methods_not_placed_under_additional_operations(): void
+    {
+        $spec = $this->makeGenerator()->generate();
+
+        foreach ($spec['paths'] as $path => $pathItem) {
+            $this->assertArrayNotHasKey(
+                'additionalOperations',
+                $pathItem,
+                "Path {$path} should not have additionalOperations for standard HTTP methods"
+            );
+        }
+    }
+
+    public function test_default_security_unknown_scheme_logs_warning(): void
+    {
+        Log::spy();
+
+        $this->app['config']->set('luminous.default_security', [['undeclaredScheme' => []]]);
+
+        $this->makeGenerator()->generate();
+
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->withArgs(fn ($msg) => str_contains((string) $msg, 'undeclaredScheme'));
+    }
+
+    public function test_default_security_known_schemes_no_warning(): void
+    {
+        Log::spy();
+
+        $this->app['config']->set('luminous.default_security', [['bearerAuth' => []]]);
+
+        $this->makeGenerator()->generate();
+
+        Log::shouldNotHaveReceived('warning');
+    }
+
+    public function test_default_security_scalar_entry_logs_warning_and_does_not_throw(): void
+    {
+        Log::spy();
+
+        $this->app['config']->set('luminous.default_security', ['BearerAuth']);
+
+        $spec = $this->makeGenerator()->generate();
+
+        $this->assertIsArray($spec);
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->withArgs(fn ($msg) => str_contains((string) $msg, 'must be an array'));
+    }
 }

@@ -12,5 +12,7 @@ final class ApiHeader
         public readonly string $type = 'string',
         public readonly ?string $format = null,
         public readonly mixed $example = null,
+        public readonly ?string $style = null,
+        public readonly ?bool $explode = null,
     ) {}
 }

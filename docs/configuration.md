@@ -404,6 +404,14 @@ Define your schemes here and reference them by name in `#[ApiSecurity]` attribut
 ],
 ```
 
+If `default_security` references a scheme name that is not declared in
+`security_schemes`, Luminous logs a warning when generating the spec. This catches
+typos before they reach your consumers.
+
+```
+Luminous: default_security references undeclared scheme 'bearerAutth'. Add it to security_schemes or fix the name.
+```
+
 ---
 
 ## Hiding the Schemas section

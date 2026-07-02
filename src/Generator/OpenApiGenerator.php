@@ -7,6 +7,10 @@ use Botnetdobbs\Luminous\Extractors\RouteExtractor;
 
 class OpenApiGenerator
 {
+    private const FIXED_PATH_ITEM_METHODS = [
+        'get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace', 'query',
+    ];
+
     public function __construct(
         private readonly array $config,
         private readonly RouteExtractor $routeExtractor,
@@ -39,7 +43,11 @@ class OpenApiGenerator
                         $seenOperationIds[$id] = 1;
                     }
                 }
-                $paths[$route->path][$route->httpMethod] = $operation;
+                if (in_array($route->httpMethod, self::FIXED_PATH_ITEM_METHODS, true)) {
+                    $paths[$route->path][$route->httpMethod] = $operation;
+                } else {
+                    $paths[$route->path]['additionalOperations'][$route->httpMethod] = $operation;
+                }
             } catch (\Throwable $e) {
                 logger()->warning('Luminous: failed to extract route [{method} {path}]: {type} {message}', [
                     'method' => $route->httpMethod,
@@ -76,7 +84,33 @@ class OpenApiGenerator
             $doc['$self'] = $selfUrl;
         }
 
+        $this->validateDefaultSecurity();
+
         return $doc;
+    }
+
+    private function validateDefaultSecurity(): void
+    {
+        $knownSchemes = array_keys($this->config['security_schemes'] ?? []);
+
+        foreach ($this->config['default_security'] ?? [] as $requirement) {
+            if (! is_array($requirement)) {
+                logger()->warning(
+                    'Luminous: each entry in default_security must be an array mapping scheme names to scopes. '.
+                    'Got '.gettype($requirement).'. Skipping.'
+                );
+
+                continue;
+            }
+            foreach (array_keys($requirement) as $schemeName) {
+                if (! in_array($schemeName, $knownSchemes, true)) {
+                    logger()->warning(
+                        "Luminous: default_security references undeclared scheme '{$schemeName}'. ".
+                        'Add it to security_schemes or fix the name.'
+                    );
+                }
+            }
+        }
     }
 
     private function buildInfo(): array

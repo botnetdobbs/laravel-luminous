@@ -182,10 +182,10 @@ That is the whole picture. The individual docs below go into every detail.
 | `#[ApiBody]` | Method | Override the auto-detected request class or add a description |
 | `#[ApiResponse]` | Method | Document a response status code (repeatable) |
 | `#[ApiResponseHeader]` | Method | Document a response header on a specific status code (repeatable) |
-| `#[ApiParam]` | Method | Document a path parameter, including route model bound params (repeatable). Supports `deprecated` |
-| `#[ApiQuery]` | Method | Document a query string parameter (repeatable). Supports `deprecated` and `location` for `in: querystring` parameters |
+| `#[ApiParam]` | Method | Document a path parameter, including route model bound params (repeatable). Supports `deprecated`, `style` (`simple`, `label`, `matrix`), and `explode` |
+| `#[ApiQuery]` | Method | Document a query string parameter (repeatable). Supports `deprecated`, `location` for `in: querystring`, `style` (`form`, `spaceDelimited`, `pipeDelimited`, `deepObject`), and `explode` |
 | `#[ApiStream]` | Method | Document a streaming endpoint (SSE, JSONL). Emits `itemSchema` instead of `schema` |
-| `#[ApiHeader]` | Method | Document a request header (repeatable) |
+| `#[ApiHeader]` | Method | Document a request header (repeatable). Supports `style` (`simple`) and `explode` |
 | `#[ApiSecurity]` | Class or Method | Declare a required security scheme with optional scopes (repeatable) |
 | `#[ApiNoSecurity]` | Method | Mark an endpoint as requiring no authentication |
 | `#[ApiDeprecated]` | Method | Mark an endpoint as deprecated with a reason and replacement |
