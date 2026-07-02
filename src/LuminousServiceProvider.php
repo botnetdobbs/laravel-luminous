@@ -65,6 +65,8 @@ class LuminousServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        config()->set('luminous.ui.drivers', require __DIR__.'/config/luminous-ui.php');
+
         $this->publishes([
             __DIR__.'/../config/luminous.php' => config_path('luminous.php'),
         ], 'luminous-config');

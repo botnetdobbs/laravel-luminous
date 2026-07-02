@@ -9,6 +9,7 @@ class SkeletonTest extends LuminousTestCase
     protected function defineEnvironment($app): void
     {
         $app['config']->set('luminous.enabled', true);
+        $app['config']->set('luminous.ui.driver', 'swagger');
     }
 
     public function test_json_endpoint_returns_openapi_structure(): void

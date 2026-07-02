@@ -5,6 +5,7 @@ namespace Botnetdobbs\Luminous\Tests\Feature;
 use Botnetdobbs\Luminous\Support\CacheManager;
 use Botnetdobbs\Luminous\Support\YamlExporter;
 use Botnetdobbs\Luminous\Tests\LuminousTestCase;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\Yaml\Yaml;
 
 class HttpLayerTest extends LuminousTestCase
@@ -12,6 +13,7 @@ class HttpLayerTest extends LuminousTestCase
     protected function defineEnvironment($app): void
     {
         $app['config']->set('luminous.enabled', true);
+        $app['config']->set('luminous.ui.driver', 'swagger');
     }
 
     public function test_json_endpoint_returns_valid_openapi(): void
@@ -237,14 +239,134 @@ class HttpLayerTest extends LuminousTestCase
         $this->assertStringContainsString("form-action 'self'", $csp);
     }
 
-    public function test_cdn_host_outside_allowlist_falls_back_to_default(): void
+    public function test_redoc_driver_returns_redoc_html(): void
     {
-        $this->app['config']->set('luminous.ui.cdn.swagger_ui', 'https://attacker.com/swagger-ui-dist@5.18.2');
+        $this->app['config']->set('luminous.ui.driver', 'redoc');
+
+        $response = $this->get('/docs');
+
+        $response->assertStatus(200);
+        $this->assertStringContainsString('redoc.standalone.js', $response->getContent());
+        $this->assertStringContainsString('Redoc.init(', $response->getContent());
+    }
+
+    public function test_scalar_driver_returns_scalar_html(): void
+    {
+        $this->app['config']->set('luminous.ui.driver', 'scalar');
+
+        $response = $this->get('/docs');
+
+        $response->assertStatus(200);
+        $this->assertStringContainsString('@scalar/api-reference', $response->getContent());
+        $this->assertStringContainsString('Scalar.createApiReference', $response->getContent());
+    }
+
+    public function test_unknown_driver_falls_back_to_swagger_and_logs_warning(): void
+    {
+        Log::spy();
+
+        $this->app['config']->set('luminous.ui.driver', 'unknown-driver');
+
+        $response = $this->get('/docs');
+
+        $response->assertStatus(200);
+        $this->assertStringContainsString('SwaggerUIBundle', $response->getContent());
+
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn ($msg) => str_contains((string) $msg, 'unknown-driver'));
+    }
+
+    public function test_cdn_host_outside_allowlist_falls_back_to_swagger(): void
+    {
+        $this->app['config']->set('luminous.ui.drivers.swagger.cdn', 'https://attacker.com/swagger-ui-dist');
 
         $response = $this->get('/docs');
 
         $response->assertStatus(200);
         $this->assertStringNotContainsString('attacker.com', $response->getContent());
-        $this->assertStringContainsString('unpkg.com', $response->getContent());
+    }
+
+    public function test_swagger_dark_mode_renders_class_and_meta(): void
+    {
+        $this->app['config']->set('luminous.ui.swagger.dark_mode', true);
+
+        $response = $this->get('/docs');
+
+        $response->assertStatus(200);
+        $content = $response->getContent();
+        $this->assertStringContainsString("classList.add('dark-mode')", $content);
+        $this->assertStringContainsString('content="dark"', $content);
+    }
+
+    public function test_swagger_dark_mode_absent_when_disabled(): void
+    {
+        $this->app['config']->set('luminous.ui.swagger.dark_mode', false);
+
+        $response = $this->get('/docs');
+
+        $content = $response->getContent();
+        $this->assertStringNotContainsString('dark-mode', $content);
+        $this->assertStringNotContainsString('color-scheme', $content);
+    }
+
+    public function test_redoc_dark_theme_renders_css_override(): void
+    {
+        $this->app['config']->set('luminous.ui.driver', 'redoc');
+        $this->app['config']->set('luminous.ui.redoc.theme', 'dark');
+
+        $response = $this->get('/docs');
+
+        $response->assertStatus(200);
+        $this->assertStringContainsString('#0f1419', $response->getContent());
+    }
+
+    public function test_redoc_stripe_theme_renders_correctly(): void
+    {
+        $this->app['config']->set('luminous.ui.driver', 'redoc');
+        $this->app['config']->set('luminous.ui.redoc.theme', 'stripe');
+
+        $response = $this->get('/docs');
+
+        $response->assertStatus(200);
+        $this->assertStringContainsString('Redoc.init(', $response->getContent());
+    }
+
+    public function test_redoc_unknown_theme_falls_back_to_default_safely(): void
+    {
+        $this->app['config']->set('luminous.ui.driver', 'redoc');
+        $this->app['config']->set('luminous.ui.redoc.theme', 'nonexistent');
+
+        $response = $this->get('/docs');
+
+        $response->assertStatus(200);
+        $this->assertStringContainsString('Redoc.init(', $response->getContent());
+    }
+
+    public function test_redoc_driver_csp_includes_unsafe_inline_and_blob_workers(): void
+    {
+        $this->app['config']->set('luminous.ui.driver', 'redoc');
+
+        $csp = $this->get('/docs')->headers->get('Content-Security-Policy');
+
+        $this->assertStringContainsString("'unsafe-inline'", $csp);
+        $this->assertStringContainsString('worker-src blob:', $csp);
+    }
+
+    public function test_swagger_driver_csp_excludes_unsafe_inline_and_blob_workers(): void
+    {
+        $csp = $this->get('/docs')->headers->get('Content-Security-Policy');
+
+        $this->assertStringNotContainsString("'unsafe-inline'", $csp);
+        $this->assertStringContainsString("worker-src 'none'", $csp);
+    }
+
+    public function test_scalar_driver_csp_includes_unsafe_inline_but_not_blob_workers(): void
+    {
+        $this->app['config']->set('luminous.ui.driver', 'scalar');
+
+        $csp = $this->get('/docs')->headers->get('Content-Security-Policy');
+
+        $this->assertStringContainsString("'unsafe-inline'", $csp);
+        $this->assertStringContainsString("worker-src 'none'", $csp);
     }
 }

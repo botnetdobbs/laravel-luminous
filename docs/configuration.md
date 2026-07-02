@@ -4,16 +4,15 @@ Open `config/luminous.php` after publishing it. The defaults work for most proje
 
 ```php
 return [
-    // Whether Luminous is enabled at all.
-    // Set LUMINOUS_ENABLED=false to disable docs entirely in production.
+    // Set LUMINOUS_ENABLED=false to hide docs entirely in production.
     'enabled' => env('LUMINOUS_ENABLED', true),
 
-    // The URL path where your docs are served. Default: /docs
+    // URL prefix where docs are served. Default: /docs
     'path' => env('LUMINOUS_PATH', 'docs'),
 
-    // Your API info. These appear at the top of the Swagger UI.
+    // Your API info. Shown at the top of every UI.
     'info' => [
-        'title'       => env('LUMINOUS_TITLE', config('app.name') . ' API'),
+        'title'       => env('LUMINOUS_TITLE', 'Luminous API'),
         'version'     => env('LUMINOUS_VERSION', '1.0.0'),
         'description' => env('LUMINOUS_DESCRIPTION', ''),
         'contact' => [
@@ -22,58 +21,79 @@ return [
             'url'   => env('LUMINOUS_CONTACT_URL', ''),
         ],
         'license' => [
-            'name' => env('LUMINOUS_LICENSE_NAME', ''),
+            'name' => env('LUMINOUS_LICENSE', ''),
             'url'  => env('LUMINOUS_LICENSE_URL', ''),
         ],
     ],
 
-    // The servers that appear in the Servers dropdown in Swagger UI.
-    // Add one entry per environment you want consumers to be able to switch to.
+    // The server selector dropdown. Add one entry per environment.
     'servers' => [
         ['url' => env('APP_URL', 'http://localhost'), 'description' => 'Local'],
     ],
 
-    // Middleware to protect the docs routes.
-    // Set LUMINOUS_MIDDLEWARE=auth:sanctum to require authentication.
+    // Middleware protecting all three docs routes (/docs, .json, .yaml).
+    // Use | as the delimiter. Commas appear inside middleware parameters
+    // like throttle:60,1 and would split them incorrectly.
     'middleware' => env('LUMINOUS_MIDDLEWARE')
-        ? explode(',', env('LUMINOUS_MIDDLEWARE'))
+        ? array_map('trim', explode('|', env('LUMINOUS_MIDDLEWARE')))
         : [],
 
     // Only document routes whose names match these patterns.
-    // Supports exact names and wildcard suffixes using .* (e.g. 'api.*').
     // Empty means all routes are included.
     'include_routes' => [],
 
-    // Exclude routes whose names match these patterns.
-    // Supports exact names and wildcard suffixes using .* (e.g. 'luminous.*').
-    'exclude_routes' => ['luminous.*'],
+    // Exclude routes whose names match these patterns. Evaluated after include_routes.
+    'exclude_routes' => [
+        'luminous.*', 'telescope.*', 'horizon.*',
+        'debugbar.*', 'sanctum.*', 'ignition.*',
+    ],
+
+    // Security scheme definitions - referenced by name in #[ApiSecurity] attributes.
+    'security_schemes' => [
+        'bearerAuth' => ['type' => 'http', 'scheme' => 'bearer', 'bearerFormat' => 'JWT'],
+        'apiKey'     => ['type' => 'apiKey', 'in' => 'header', 'name' => 'Authorization'],
+    ],
+
+    // Applied to every endpoint that has no explicit #[ApiSecurity] or #[ApiNoSecurity].
+    'default_security' => [],
 
     // Set to true if your API wraps responses in {"data": ...}.
-    // Laravel's JsonResource wraps by default, so set this to true unless you
-    // have called JsonResource::withoutWrapping() somewhere in your app.
-    'wrap_responses' => false,
-    'response_wrapper_key' => 'data',
-
+    'wrap_responses'            => false,
+    'response_wrapper_key'      => 'data',
     // Whether to include the shared PaginationMeta schema in components.
     // This is referenced automatically when you use paginated: true on #[ApiResponse].
     'include_pagination_schema' => true,
 
-    // Default security applied to every endpoint that has no explicit #[ApiSecurity].
-    // An empty array means no default security.
-    'default_security' => [],
+    // Named schemas registered in components.schemas before any routes are processed.
+    'shared_schemas' => [
+        'ErrorResponse' => [
+            'type' => 'object',
+            'properties' => [
+                'code'       => ['type' => 'string'],
+                'message'    => ['type' => 'string'],
+                'request_id' => ['type' => 'string'],
+                'timestamp'  => ['type' => 'string', 'format' => 'date-time'],
+                'details'    => ['type' => 'object'],
+            ],
+        ],
+    ],
 
-    // Security scheme definitions. These go into components.securitySchemes.
-    'security_schemes' => [],
-
-    // Canonical URL of this spec ($self). Defaults to APP_URL + LUMINOUS_PATH + /openapi.json.
+    // Canonical URL of the spec ($self). Defaults to APP_URL/LUMINOUS_PATH/openapi.json.
     'self_url' => env('APP_URL', 'http://localhost').'/'.env('LUMINOUS_PATH', 'docs').'/openapi.json',
 
-    // Cache settings. Always enable caching in production.
+    // Caching avoids re-generating the spec on every request. Recommended for production.
     'cache' => [
         'enabled' => env('LUMINOUS_CACHE', true),
-        'store'   => env('LUMINOUS_CACHE_STORE', null),
-        'key'     => env('LUMINOUS_CACHE_KEY', 'luminous:spec'),
         'ttl'     => env('LUMINOUS_CACHE_TTL', 3600),
+        'key'     => env('LUMINOUS_CACHE_KEY', 'luminous:spec'),
+        'store'   => env('LUMINOUS_CACHE_STORE', null),
+    ],
+
+    // Which UI to render at /docs. Options: swagger (default), redoc, scalar.
+    // See the Swagger UI options, Redoc options, and Scalar options sections below
+    // for each driver's full set of options.
+    'ui' => [
+        'driver' => env('LUMINOUS_UI_DRIVER', 'swagger'),
     ],
 ];
 ```
@@ -88,10 +108,13 @@ LUMINOUS_TITLE="Payments API"
 LUMINOUS_VERSION="2.0.0"
 LUMINOUS_DESCRIPTION="Handles payment creation and lifecycle management."
 
-# Protect docs in production (recommended)
+# Choose your UI
+LUMINOUS_UI_DRIVER=redoc
+
+# Protect docs in production
 LUMINOUS_MIDDLEWARE=auth:sanctum
 
-# Or hide docs entirely and export to a static file instead
+# Or disable docs entirely and export to a static file instead
 LUMINOUS_ENABLED=false
 
 # Cache
@@ -101,11 +124,132 @@ LUMINOUS_CACHE_TTL=3600
 
 ---
 
+## Choosing a UI driver
+
+Luminous supports three documentation UIs. Switch with `LUMINOUS_UI_DRIVER` in your `.env`:
+
+| Value | UI | Best for |
+|-------|----|----------|
+| `swagger` | Swagger UI 5.x | Interactive testing, familiar interface |
+| `redoc` | Redoc 2.x | Clean read-only layout, public-facing APIs |
+| `scalar` | Scalar | Modern interactive UI with AI agent |
+
+CDN URLs and SRI hashes for each driver are managed by the package internally. You do not need to configure them.
+
+**OpenAPI 3.2 support:** Swagger UI and Redoc have full 3.2 support. Scalar's parser supports 3.2 but full rendering of all 3.2-specific features is still in progress upstream.
+
+---
+
+## Swagger UI options
+
+```php
+'swagger' => [
+    'dark_mode'                   => false,
+    'persist_authorization'       => true,
+    'display_request_duration'    => true,
+    'default_models_expand_depth' => 1,
+    'syntax_highlight_theme'      => 'monokai',
+    'try_it_out_enabled'          => true,
+],
+```
+
+**`dark_mode`**: adds the built-in `dark-mode` CSS class introduced in Swagger UI 5.x. There is no config flag for this upstream; Luminous manages the class for you. Also injects `color-scheme: light dark` so browser scrollbars and native controls follow along.
+
+**`syntax_highlight_theme`**: controls the colour theme for code sample blocks. Valid values: `agate` (default), `arta`, `monokai`, `nord`, `obsidian`, `tomorrow-night`, `idea`.
+
+**`default_models_expand_depth`**: how many levels deep to expand schemas in the Schemas section. Set to `-1` to hide the section entirely.
+
+---
+
+## Redoc options
+
+```php
+'redoc' => [
+    'theme'                => 'default',
+    'hide_download_button' => false,
+    'expand_responses'     => '',
+    'native_scrollbars'    => false,
+    'path_in_middle_panel' => false,
+    'hide_schema_pattern'  => '',
+],
+```
+
+**`theme`**: built-in Redoc themes: `default`, `dark`, `stripe`. See [Redoc themes](#redoc-themes) below.
+
+**`hide_download_button`**: removes the Download button from the top bar. Set to `true` if you do not want consumers downloading a copy of the spec.
+
+**`expand_responses`**: set to `'all'` to expand every response by default, or a comma-separated list of status codes like `'200,201'`.
+
+**`native_scrollbars`**: when `true`, uses the browser's native scrollbars instead of Redoc's custom styled ones. Useful if the custom scrollbars conflict with your OS or browser theme.
+
+**`path_in_middle_panel`**: when `true`, shows the endpoint path (e.g. `POST /payments`) in the middle content panel instead of the right code panel. Useful when your paths are long.
+
+**`hide_schema_pattern`**: a regex for filtering schemas out of the sidebar. See [Hiding the Schemas section](#hiding-the-schemas-section).
+
+---
+
+## Redoc themes
+
+Redoc ships with three built-in themes.
+
+**`default`**: the standard Redoc look. White background, blue sidebar, dark right panel.
+
+**`dark`**: GitHub-dark inspired. Dark background throughout, blue accent colour, and monospace code samples. Falls back to system fonts so no external font requests are made.
+
+**`stripe`**: Stripe Docs inspired. Clean light layout using system fonts (SF Pro on macOS, Segoe UI on Windows), native monospace for code, and Stripe's signature deep navy right panel. No external font requests.
+
+To switch:
+
+```php
+'redoc' => [
+    'theme' => 'dark',
+],
+```
+
+The themes are built into the package. There is nothing extra to install.
+
+---
+
+## Scalar options
+
+```php
+'scalar' => [
+    'theme'        => 'default',
+    'layout'       => 'modern',
+    'dark_mode'    => false,
+    'hide_models'  => false,
+    'show_sidebar' => true,
+    'agent_key'    => env('SCALAR_AGENT_KEY', null),
+],
+```
+
+**`theme`**: Scalar's built-in colour themes: `default`, `alternate`, `moon`, `purple`, `solarized`, `bluePlanet`, `deepSpace`, `laserwave`, `kepler`, `mars`, `saturn`, `none`.
+
+**`layout`**: `modern` (default) or `classic`. Classic mimics the three-column Swagger UI layout.
+
+**`dark_mode`**: toggle Scalar's dark mode. Unlike Swagger UI, Scalar has proper built-in dark mode support.
+
+**`show_sidebar`**: set to `false` to hide the left navigation sidebar. Useful for embedded or minimal views where you want just the content.
+
+**`hide_models`**: set to `true` to hide the Models section at the bottom of the page. See [Hiding the Schemas section](#hiding-the-schemas-section).
+
+### Scalar AI agent
+
+Scalar has a built-in AI chat that lets users ask questions about your API based on your OpenAPI document.
+
+It works on localhost without a key (10 free test messages). For production, get a key at scalar.com and set it in `.env`:
+
+```env
+SCALAR_AGENT_KEY=your-key-here
+```
+
+Leave it unset to disable the agent entirely.
+
+---
+
 ## Filtering routes
 
-Use `include_routes` to show only specific routes, or `exclude_routes` to hide routes
-you do not want in the docs. Both accept exact route names and wildcard patterns
-using `.*`.
+Use `include_routes` to show only specific routes, or `exclude_routes` to hide routes you do not want in the docs. Both accept exact route names and wildcard patterns using `.*`.
 
 ```php
 // Only document routes under the "api.*" name prefix
@@ -113,17 +257,58 @@ using `.*`.
 
 // Exclude internal and admin routes
 'exclude_routes' => ['luminous.*', 'admin.*', 'internal.*'],
+```
 
-// Exclude a specific route by exact name
-'exclude_routes' => ['health.check'],
+When `include_routes` is non-empty, only matching routes are considered. `exclude_routes` is then applied on top. The package's own `luminous.*` routes are always excluded.
+
+For finer-grained control, use `#[ApiIgnore]` directly on a controller or method instead of matching by route name:
+
+```php
+use Botnetdobbs\Luminous\Attributes\ApiIgnore;
+
+// Hide every endpoint in this controller
+#[ApiIgnore]
+class InternalController extends Controller { ... }
+
+// Hide a single endpoint
+class PaymentController extends Controller
+{
+    #[ApiIgnore]
+    public function debugDump(): JsonResponse { ... }
+}
+```
+
+`#[ApiIgnore]` also works on resource properties when you are using the `#[ApiProperty]` strategy. If your resource defines a static `schema()` method instead, only what you return from that method is included in the spec, so `#[ApiIgnore]` on properties is not needed:
+
+```php
+// #[ApiIgnore] needed here: Luminous scans public properties for #[ApiProperty]
+class PaymentResource extends JsonResource
+{
+    #[ApiProperty(description: 'The payment ID')]
+    public string $id;
+
+    #[ApiIgnore]
+    public string $internalRef; // excluded from the schema
+}
+
+// No #[ApiIgnore] needed: schema() is the complete definition
+class PaymentResource extends JsonResource
+{
+    public static function schema(): array
+    {
+        return [
+            'id' => ['type' => 'string'],
+        ];
+        // internalRef is simply not listed here, so it never appears in the spec
+    }
+}
 ```
 
 ---
 
 ## Multiple servers
 
-List every server your API runs on. Swagger UI shows a dropdown so consumers can
-switch between them.
+List every server your API runs on. All three UIs show a dropdown so consumers can switch between them.
 
 ```php
 'servers' => [
@@ -137,7 +322,7 @@ switch between them.
 
 ## Document identity
 
-OAS 3.2 uses JSON Schema 2020-12 reference resolution. Without `$self`, resolvers fall back to the retrieval URI — the URL the document was fetched from. This breaks when the spec is served through a proxy, CDN, or any URL that differs from its canonical location. Setting `$self` makes `$ref` resolution deterministic regardless of how the document is retrieved.
+OAS 3.2 uses JSON Schema 2020-12 reference resolution. Without `$self`, resolvers fall back to the retrieval URI (the URL the document was fetched from). This breaks when the spec is served through a proxy, CDN, or any URL that differs from its canonical location. Setting `$self` makes `$ref` resolution deterministic regardless of how the document is retrieved.
 
 Luminous defaults `$self` to your `APP_URL` + `LUMINOUS_PATH` + `/openapi.json`, so it stays correct as long as those two values are set. No extra configuration needed.
 
@@ -145,9 +330,7 @@ Luminous defaults `$self` to your `APP_URL` + `LUMINOUS_PATH` + `/openapi.json`,
 
 ## Shared schemas
 
-`shared_schemas` registers named schemas in `components.schemas` before any routes are
-processed. The default includes `ErrorResponse`, which is available as a `$ref` for
-any `#[ApiResponse]` that returns an error shape.
+`shared_schemas` registers named schemas in `components.schemas` before any routes are processed. The default includes `ErrorResponse`, which you can reference in `#[ApiResponse]` attributes.
 
 ```php
 'shared_schemas' => [
@@ -164,16 +347,13 @@ any `#[ApiResponse]` that returns an error shape.
 ],
 ```
 
-You can add your own schemas, override the defaults, or remove them by setting the
-entry to `null`. Any schema you add here is available as a `$ref` across your spec.
+Add your own schemas, override the defaults, or remove an entry by setting it to `null`. Any schema you add here is available as a `$ref` across your spec.
 
 ---
 
 ## Middleware and access control
 
-Luminous only serves the spec. Rate limiting, authentication, and any other access
-controls are standard Laravel middleware and are your responsibility to configure
-via `LUMINOUS_MIDDLEWARE`.
+Luminous only serves the spec and UI. Rate limiting, authentication, and any other access controls are standard Laravel middleware configured via `LUMINOUS_MIDDLEWARE`.
 
 ```env
 # Require Sanctum authentication
@@ -183,15 +363,13 @@ LUMINOUS_MIDDLEWARE=auth:sanctum
 LUMINOUS_MIDDLEWARE=auth:sanctum|throttle:60,1
 ```
 
-Use `|` as the delimiter between middleware, not commas. Commas appear inside
-middleware parameters like `throttle:60,1` and would split them into invalid names.
+Use `|` as the delimiter between middleware, not commas. Commas appear inside middleware parameters like `throttle:60,1` and would split them into invalid names.
 
 ---
 
 ## Security schemes
 
-Define your schemes here. They are referenced by name in `#[ApiSecurity]` attributes
-on your controllers. See [Security](security.md) for full details.
+Define your schemes here and reference them by name in `#[ApiSecurity]` attributes on your controllers. See [Security](security.md) for full details.
 
 ```php
 'security_schemes' => [
@@ -212,14 +390,32 @@ on your controllers. See [Security](security.md) for full details.
 
 ## Hiding the Schemas section
 
-Swagger UI shows a Schemas section at the bottom of the page listing all your component schemas. For public-facing APIs you may want to hide this.
+Each driver has its own way to hide schemas. The schemas stay in the JSON spec because they are needed for request and response documentation; only the UI section that lists them is hidden.
 
-Set `default_models_expand_depth` to `-1` in your config:
+**Swagger UI**: set `default_models_expand_depth` to `-1`:
 
 ```php
-'ui' => [
+'swagger' => [
     'default_models_expand_depth' => -1,
 ],
 ```
 
-The schemas are still present in the JSON spec (they are needed for request and response documentation to work), but the Schemas accordion will not appear in the UI.
+**Redoc**: schemas appear as entries in the left sidebar. Use `hide_schema_pattern` with a regex matched against schema names:
+
+```php
+'redoc' => [
+    'hide_schema_pattern' => '.*',           // hide every schema
+    'hide_schema_pattern' => 'Internal.*',   // hide schemas starting with "Internal"
+    'hide_schema_pattern' => '^(Foo|Bar)$',  // hide only "Foo" and "Bar"
+],
+```
+
+Leave it empty (`''`) to show all schemas.
+
+**Scalar**: set `hide_models` to `true`:
+
+```php
+'scalar' => [
+    'hide_models' => true,
+],
+```

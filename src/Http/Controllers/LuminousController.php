@@ -53,27 +53,38 @@ class LuminousController extends Controller
 
     public function ui(): Response
     {
-        $uiConfig = config('luminous.ui');
-        $cdnBase = $uiConfig['cdn']['swagger_ui'] ?? '';
+        $drivers = config('luminous.ui.drivers', []);
+        $driver = config('luminous.ui.driver', 'swagger');
+
+        if (! isset($drivers[$driver])) {
+            logger()->warning("Luminous: unknown UI driver [{$driver}], falling back to swagger.");
+            $driver = 'swagger';
+        }
+
+        $driverCfg = $drivers[$driver];
+        $cdnUrl = $driverCfg['cdn'];
 
         $allowedCdnHosts = ['unpkg.com', 'cdn.jsdelivr.net', 'cdnjs.cloudflare.com'];
-        $cdnHost = parse_url((string) $cdnBase, PHP_URL_HOST) ?? '';
+        $cdnHost = parse_url((string) $cdnUrl, PHP_URL_HOST) ?? '';
         if (! in_array($cdnHost, $allowedCdnHosts, true)) {
-            $uiConfig['cdn']['swagger_ui'] = 'https://unpkg.com/swagger-ui-dist@5.18.2';
-            $cdnBase = $uiConfig['cdn']['swagger_ui'];
+            logger()->warning("Luminous: CDN host [{$cdnHost}] not in allowlist, falling back to swagger.");
+            $driver = 'swagger';
+            $internalDrivers = require __DIR__.'/../../config/luminous-ui.php';
+            $driverCfg = $internalDrivers['swagger'];
+            $cdnUrl = $driverCfg['cdn'];
         }
 
         $nonce = base64_encode(random_bytes(16));
-        $csp = $this->buildCspHeader((string) $cdnBase, $nonce);
-        $sri = $uiConfig['cdn']['sri'] ?? [];
+        $csp = $this->buildCspHeader((string) $cdnUrl, $nonce, $driver);
+        $viewName = $driverCfg['view'] ?? $driver;
 
         return response()
-            ->view('luminous::swagger-ui', [
+            ->view("luminous::{$viewName}", [
                 'title' => config('luminous.info.title'),
                 'specUrl' => route('luminous.json'),
-                'uiConfig' => $uiConfig,
+                'driverCfg' => $driverCfg,
+                'driverOptions' => config("luminous.ui.{$driver}", []),
                 'nonce' => $nonce,
-                'sri' => $sri,
             ])
             ->header('X-Frame-Options', 'SAMEORIGIN')
             ->header('X-Content-Type-Options', 'nosniff')
@@ -81,14 +92,22 @@ class LuminousController extends Controller
             ->header('Content-Security-Policy', $csp);
     }
 
-    private function buildCspHeader(string $cdnBase, string $nonce): string
+    private function buildCspHeader(string $cdnBase, string $nonce, string $driver = 'swagger'): string
     {
         $parsed = parse_url($cdnBase);
         $cdnOrigin = isset($parsed['host']) ? (($parsed['scheme'] ?? 'https').'://'.$parsed['host']) : '';
 
+        $needsUnsafeInline = in_array($driver, ['redoc', 'scalar'], true);
+
+        $styleSrc = $needsUnsafeInline
+            ? "style-src 'self' {$cdnOrigin} 'unsafe-inline'"
+            : "style-src 'self' {$cdnOrigin} 'nonce-{$nonce}'";
+
+        $workerSrc = ($driver === 'redoc') ? 'worker-src blob:' : "worker-src 'none'";
+
         return "default-src 'none'; script-src 'self' {$cdnOrigin} 'nonce-{$nonce}'; ".
-               "style-src 'self' {$cdnOrigin} 'nonce-{$nonce}'; ".
-               "img-src 'self' data:; connect-src 'self'; ".
+               "{$styleSrc}; {$workerSrc}; ".
+               "img-src 'self' data:; connect-src 'self'; font-src 'self' data:; ".
                "base-uri 'self'; object-src 'none'; form-action 'self'; ".
                "frame-ancestors 'self'";
     }

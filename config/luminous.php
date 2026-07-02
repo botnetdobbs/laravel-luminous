@@ -243,34 +243,59 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Swagger UI Options
+    | UI Driver
     |--------------------------------------------------------------------------
     |
-    | Controls the behaviour of the embedded Swagger UI at /docs.
+    | Which documentation UI to serve at /docs.
+    | Supported: swagger (default), redoc, scalar
     |
-    | "cdn.swagger_ui" is pinned to a specific version. Do not use @latest
-    | as breaking changes in a CDN update could silently break the UI.
+    | Set LUMINOUS_UI_DRIVER in your .env to switch.
+    | CDN URLs and SRI hashes for each driver are managed by the package
+    | internally. You do not need to configure them.
     |
-    | "cdn.sri" holds the Subresource Integrity hashes for the pinned version.
-    | These prevent a compromised CDN from serving malicious JavaScript.
-    | Update all three hashes whenever you bump the swagger_ui version.
+    | Each driver has its own sub-key for its options. Settings under a
+    | different driver's sub-key are ignored when that driver is not active.
     |
     */
     'ui' => [
-        'persist_authorization' => true,
-        'display_request_duration' => true,
-        // How many levels deep to expand schemas in the Schemas section.
-        // Set to -1 to hide the Schemas section entirely. Useful for public-facing APIs.
-        'default_models_expand_depth' => 1,
-        'syntax_highlight_theme' => 'monokai',
-        'try_it_out_enabled' => true,
-        'cdn' => [
-            'swagger_ui' => 'https://unpkg.com/swagger-ui-dist@5.32.8',
-            'sri' => [
-                'swagger-ui.css' => 'sha256-yiOPfXws9EgMHnepw7nakVqyFulv/TVOaQdlYMZQxt4=',
-                'swagger-ui-bundle.js' => 'sha256-l/A82ui58J+PM7YE7UeWvTGMN46QdjtGi7SqCGC9kKc=',
-                'swagger-ui-standalone-preset.js' => 'sha256-O178AUxnFi016ghwqN2wCWwLxQkrcssn/0iiiez7iYM=',
-            ],
+        'driver' => env('LUMINOUS_UI_DRIVER', 'swagger'),
+
+        'swagger' => [
+            'dark_mode' => false,
+            'persist_authorization' => true,     // keep auth token filled in after page refresh
+            'display_request_duration' => true,  // show how long each request took
+            // How many levels deep to expand schemas in the Schemas section.
+            // Set to -1 to hide the Schemas section entirely.
+            'default_models_expand_depth' => -1,
+            // Code sample syntax highlight theme.
+            // Options: agate, arta, monokai, nord, obsidian, tomorrow-night, idea
+            'syntax_highlight_theme' => 'monokai',
+            'try_it_out_enabled' => true,        // show the "Try it out" button on every endpoint
+        ],
+
+        'redoc' => [
+            'theme' => 'default',    // default, dark, stripe
+            'hide_download_button' => false,
+            'expand_responses' => '',    // 'all' or comma-separated status codes e.g. '200,201'
+            'native_scrollbars' => false,
+            'path_in_middle_panel' => false,    // show the endpoint path in the middle panel instead of the right panel
+            // Regex matched against schema names. Matching schemas are hidden from the sidebar.
+            // ''             show all (default)
+            // '.*'           hide every schema
+            // 'Internal.*'   hide schemas whose name starts with "Internal"
+            // '^(Foo|Bar)$'  hide only schemas named exactly "Foo" or "Bar"
+            'hide_schema_pattern' => '',
+        ],
+
+        'scalar' => [
+            'theme' => 'laserwave',    // default, alternate, moon, purple, solarized, etc.
+            'layout' => 'modern',    // modern, classic
+            'dark_mode' => true,
+            'hide_models' => true,
+            'show_sidebar' => true,
+            // Scalar AI agent. Get a key at scalar.com.
+            // Leave null to disable. Works on localhost without a key (10 free test messages).
+            'agent_key' => env('SCALAR_AGENT_KEY', null),
         ],
     ],
 
