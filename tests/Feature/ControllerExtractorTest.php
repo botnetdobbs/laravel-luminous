@@ -227,6 +227,26 @@ class ControllerExtractorTest extends LuminousTestCase
         $this->assertSame('#/components/schemas/ErrorResponse', $schema['$ref']);
     }
 
+    public function test_inline_schema_emitted_as_is(): void
+    {
+        $op = $this->makeExtractor()->extract($this->route('get', '/v1/payments/{id}/status', 'statusSummary'));
+
+        $schema = $op['responses']['200']['content']['application/json']['schema'];
+        $this->assertSame('object', $schema['type']);
+        $this->assertSame(['type' => 'string', 'format' => 'uuid'], $schema['properties']['id']);
+        $this->assertSame(['id', 'status'], $schema['required']);
+    }
+
+    public function test_inline_schema_not_wrapped_by_wrap_responses(): void
+    {
+        $op = $this->makeExtractor(['wrap_responses' => true, 'response_wrapper_key' => 'data'])
+            ->extract($this->route('get', '/v1/payments/{id}/status', 'statusSummary'));
+
+        $schema = $op['responses']['200']['content']['application/json']['schema'];
+        $this->assertArrayNotHasKey('data', $schema['properties'] ?? []);
+        $this->assertSame('object', $schema['type']);
+    }
+
     public function test_path_params_are_auto_detected_from_route_uri(): void
     {
         $route = new ExtractedRoute('get', '/orders/{orderId}', OrderController::class, 'show', 'order.show', []);

@@ -85,6 +85,20 @@ class PaymentController
         return response()->json([]);
     }
 
+    #[ApiOperation('Quick status check')]
+    #[ApiResponse(200, description: 'Status', schema: [
+        'type' => 'object',
+        'properties' => [
+            'id' => ['type' => 'string', 'format' => 'uuid'],
+            'status' => ['type' => 'string', 'enum' => ['active', 'cancelled']],
+        ],
+        'required' => ['id', 'status'],
+    ])]
+    public function statusSummary(string $id): JsonResponse
+    {
+        return response()->json([]);
+    }
+
     #[ApiIgnore]
     public function internalDump(): JsonResponse
     {

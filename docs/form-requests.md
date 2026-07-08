@@ -363,3 +363,7 @@ class UpdateProfileRequest extends FormRequest
 ```
 
 See [The Shape Builder](shape-builder.md) for all available methods.
+
+---
+
+[← Documenting Controllers](controllers.md) &nbsp;&nbsp; [Documenting API Resources →](resources.md)

@@ -177,3 +177,7 @@ php artisan luminous:export --format=json --output=storage/app/public/openapi.js
 # Or commit it to the repo as documentation
 php artisan luminous:export --format=yaml --output=docs/openapi.yaml
 ```
+
+---
+
+[← Security](security.md) &nbsp;&nbsp; [Back to README →](../README.md)

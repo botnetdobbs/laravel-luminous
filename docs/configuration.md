@@ -445,3 +445,7 @@ Leave it empty (`''`) to show all schemas.
     'hide_models' => true,
 ],
 ```
+
+---
+
+[← README](../README.md) &nbsp;&nbsp; [Documenting Controllers →](controllers.md)

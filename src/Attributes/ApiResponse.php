@@ -12,6 +12,7 @@ final class ApiResponse
         public readonly bool $collection = false,
         public readonly bool $paginated = false,
         public readonly ?string $ref = null,
+        public readonly ?array $schema = null,
     ) {}
 
     public function isCollection(): bool

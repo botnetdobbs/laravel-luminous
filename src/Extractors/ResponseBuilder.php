@@ -45,6 +45,13 @@ class ResponseBuilder
                         ],
                     ],
                 ];
+            } elseif ($response->schema !== null) {
+                $responses[$status] = [
+                    'description' => $response->description,
+                    'content' => [
+                        self::DEFAULT_MEDIA_TYPE => ['schema' => $response->schema],
+                    ],
+                ];
             } elseif ($response->resource !== null) {
                 $resourceSchema = $this->resourceExtractor->extract($response->resource);
                 $schema = $response->isCollection()

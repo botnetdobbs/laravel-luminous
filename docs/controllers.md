@@ -151,6 +151,45 @@ public function index(): JsonResponse {}
 `paginated: true` does the same but also adds the pagination envelope
 (`cursor`, `has_more`, `total`) to the documented response.
 
+### Responses without a resource class
+
+You have three options when you return data directly from your controller without a resource class.
+
+**Inline schema** - write the OpenAPI schema directly in the attribute. This is pure OpenAPI syntax, so any developer familiar with the spec will recognise it immediately. Use this for simple shapes:
+
+```php
+#[ApiResponse(200, description: 'Status', schema: [
+    'type' => 'object',
+    'properties' => [
+        'id'     => ['type' => 'string', 'format' => 'uuid'],
+        'status' => ['type' => 'string', 'enum' => ['active', 'cancelled']],
+    ],
+    'required' => ['id', 'status'],
+])]
+public function status(string $id): JsonResponse {}
+```
+
+For a more complex shape, create a plain PHP class with `#[ApiShape]` and pass it as the second argument instead. Luminous treats it exactly like a `JsonResource`. See [Documenting API Resources](resources.md#using-a-plain-class-or-dto-instead-of-a-jsonresource) for details.
+
+**Named schema reference** - define the schema once in `shared_schemas` config and reference it by name. This is useful when several endpoints return the same shape:
+
+```php
+// config/luminous.php
+'shared_schemas' => [
+    'StatusResponse' => [
+        'type' => 'object',
+        'properties' => [
+            'id'     => ['type' => 'string', 'format' => 'uuid'],
+            'status' => ['type' => 'string'],
+        ],
+    ],
+],
+
+// On the method
+#[ApiResponse(200, description: 'Status', ref: '#/components/schemas/StatusResponse')]
+public function status(string $id): JsonResponse {}
+```
+
 ---
 
 ## Documenting response headers
@@ -632,3 +671,7 @@ the right `#[ApiResponse]`:
 #[ApiComposedOf('anyOf', refs: [PendingResource::class, ProcessingResource::class], forStatus: 202)]
 public function show(string $id): JsonResponse {}
 ```
+
+---
+
+[← Configuration](configuration.md) &nbsp;&nbsp; [Documenting Form Requests →](form-requests.md)

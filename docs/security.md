@@ -162,3 +162,7 @@ class WebhookController extends Controller {}
 #[ApiNoSecurity]
 public function publicStatus(string $id): JsonResponse {}
 ```
+
+---
+
+[← The Shape Builder](shape-builder.md) &nbsp;&nbsp; [CLI Commands and Deployment →](deployment.md)

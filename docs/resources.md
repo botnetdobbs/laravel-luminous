@@ -305,3 +305,7 @@ class PaymentSummaryDto
 #[ApiResponse(200, PaymentSummaryDto::class, 'Summary retrieved')]
 public function summary(string $id): JsonResponse {}
 ```
+
+---
+
+[← Documenting Form Requests](form-requests.md) &nbsp;&nbsp; [The Shape Builder →](shape-builder.md)
