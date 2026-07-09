@@ -602,6 +602,28 @@ the correct media type from the request's `rules()`. So a `FileUploadRequest` th
 has `file` rules produces `multipart/form-data` even when you are using the explicit
 attribute.
 
+If you validate inside the controller with `$request->validate([...])` and have no FormRequest class, pass a raw OpenAPI schema array with `schema:`:
+
+```php
+#[ApiBody(schema: [
+    'type' => 'object',
+    'properties' => [
+        'amount'   => ['type' => 'integer', 'minimum' => 1],
+        'currency' => ['type' => 'string'],
+    ],
+    'required' => ['amount', 'currency'],
+])]
+public function store(Request $request): JsonResponse
+{
+    $validated = $request->validate([
+        'amount'   => ['required', 'integer', 'min:1'],
+        'currency' => ['required', 'string'],
+    ]);
+
+    return response()->json($validated, 201);
+}
+```
+
 ---
 
 ## Marking an endpoint deprecated

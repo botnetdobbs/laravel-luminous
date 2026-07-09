@@ -368,19 +368,37 @@ class ControllerExtractor
         $bodyAttrs = $methodRef->getAttributes(ApiBody::class);
         if (! empty($bodyAttrs)) {
             $body = $bodyAttrs[0]->newInstance();
-            $schema = $this->requestExtractor->extract($body->request);
-            $mediaType = $body->mediaType ?? $this->requestExtractor->mediaType($body->request);
-            $requestBody = [
-                'required' => $body->required,
-                'content' => [
-                    $mediaType => ['schema' => $schema],
-                ],
-            ];
-            if ($body->description !== '') {
-                $requestBody['description'] = $body->description;
+
+            if ($body->schema !== null) {
+                $mediaType = $body->mediaType ?? 'application/json';
+                $requestBody = [
+                    'required' => $body->required,
+                    'content' => [
+                        $mediaType => ['schema' => $body->schema],
+                    ],
+                ];
+                if ($body->description !== '') {
+                    $requestBody['description'] = $body->description;
+                }
+
+                return $requestBody;
             }
 
-            return $requestBody;
+            if ($body->request !== null) {
+                $schema = $this->requestExtractor->extract($body->request);
+                $mediaType = $body->mediaType ?? $this->requestExtractor->mediaType($body->request);
+                $requestBody = [
+                    'required' => $body->required,
+                    'content' => [
+                        $mediaType => ['schema' => $schema],
+                    ],
+                ];
+                if ($body->description !== '') {
+                    $requestBody['description'] = $body->description;
+                }
+
+                return $requestBody;
+            }
         }
 
         $autoBody = $this->autoDetectFormRequest($methodRef);

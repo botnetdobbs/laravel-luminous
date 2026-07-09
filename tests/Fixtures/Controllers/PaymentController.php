@@ -85,6 +85,21 @@ class PaymentController
         return response()->json([]);
     }
 
+    #[ApiOperation('Inline body')]
+    #[ApiBody(schema: [
+        'type' => 'object',
+        'properties' => [
+            'amount' => ['type' => 'integer', 'minimum' => 1],
+            'currency' => ['type' => 'string'],
+        ],
+        'required' => ['amount', 'currency'],
+    ])]
+    #[ApiResponse(201, description: 'Created')]
+    public function inlineBody(Request $request): JsonResponse
+    {
+        return response()->json([], 201);
+    }
+
     #[ApiOperation('Quick status check')]
     #[ApiResponse(200, description: 'Status', schema: [
         'type' => 'object',

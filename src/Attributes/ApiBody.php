@@ -6,9 +6,10 @@ namespace Botnetdobbs\Luminous\Attributes;
 final class ApiBody
 {
     public function __construct(
-        public readonly string $request,
+        public readonly ?string $request = null,
         public readonly string $description = '',
         public readonly bool $required = true,
         public readonly ?string $mediaType = null,
+        public readonly ?array $schema = null,
     ) {}
 }

@@ -301,6 +301,25 @@ class ControllerExtractorTest extends LuminousTestCase
         $this->assertArrayNotHasKey('application/json', $op['requestBody']['content']);
     }
 
+    public function test_api_body_inline_schema_emitted_as_is(): void
+    {
+        $op = $this->makeExtractor()->extract($this->route('post', '/v1/payments/inline', 'inlineBody'));
+
+        $this->assertArrayHasKey('requestBody', $op);
+        $schema = $op['requestBody']['content']['application/json']['schema'];
+        $this->assertSame('object', $schema['type']);
+        $this->assertSame(['type' => 'integer', 'minimum' => 1], $schema['properties']['amount']);
+        $this->assertSame(['amount', 'currency'], $schema['required']);
+        $this->assertTrue($op['requestBody']['required']);
+    }
+
+    public function test_api_body_inline_schema_uses_custom_media_type(): void
+    {
+        $op = $this->makeExtractor()->extract($this->route('post', '/v1/payments/inline', 'inlineBody'));
+
+        $this->assertArrayHasKey('application/json', $op['requestBody']['content']);
+    }
+
     public function test_api_example_targeting_absent_status_is_skipped_with_warning(): void
     {
         Log::spy();
