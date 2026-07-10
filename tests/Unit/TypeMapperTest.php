@@ -6,6 +6,7 @@ use Botnetdobbs\Luminous\Extractors\EnumExtractor;
 use Botnetdobbs\Luminous\Support\TypeMapper;
 use Botnetdobbs\Luminous\Tests\Fixtures\Enums\PaymentStatus;
 use Illuminate\Validation\Rule;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 class TypeMapperTest extends TestCase
@@ -80,20 +81,6 @@ class TypeMapperTest extends TestCase
 
         $this->assertSame('string', $schema['type']);
         $this->assertSame('binary', $schema['format']);
-    }
-
-    public function test_uuid_rule_produces_uuid_format(): void
-    {
-        $schema = $this->mapper->validationRulesToSchema(['string', 'uuid']);
-
-        $this->assertSame('uuid', $schema['format']);
-    }
-
-    public function test_email_rule_produces_email_format(): void
-    {
-        $schema = $this->mapper->validationRulesToSchema(['string', 'email']);
-
-        $this->assertSame('email', $schema['format']);
     }
 
     public function test_between_on_integer_produces_numeric_range(): void
@@ -204,27 +191,6 @@ class TypeMapperTest extends TestCase
         $this->assertSame('^[A-Z]+$', $schema['pattern']);
     }
 
-    public function test_ip_rule_produces_ipv4_format(): void
-    {
-        $schema = $this->mapper->validationRulesToSchema(['string', 'ip']);
-
-        $this->assertSame('ipv4', $schema['format']);
-    }
-
-    public function test_ipv4_rule_produces_ipv4_format(): void
-    {
-        $schema = $this->mapper->validationRulesToSchema(['string', 'ipv4']);
-
-        $this->assertSame('ipv4', $schema['format']);
-    }
-
-    public function test_ipv6_rule_produces_ipv6_format(): void
-    {
-        $schema = $this->mapper->validationRulesToSchema(['string', 'ipv6']);
-
-        $this->assertSame('ipv6', $schema['format']);
-    }
-
     public function test_decimal_rule_produces_number_type(): void
     {
         $schema = $this->mapper->validationRulesToSchema(['decimal']);
@@ -284,5 +250,93 @@ class TypeMapperTest extends TestCase
         $rule = Rule::in(['a', 'b']);
 
         $this->assertNull($extractor->classFromRule($rule));
+    }
+
+    public function test_distinct_rule_on_array_adds_unique_items(): void
+    {
+        $schema = $this->mapper->validationRulesToSchema(['array', 'distinct']);
+
+        $this->assertTrue($schema['uniqueItems']);
+    }
+
+    public function test_distinct_rule_on_non_array_is_ignored(): void
+    {
+        $schema = $this->mapper->validationRulesToSchema(['string', 'distinct']);
+
+        $this->assertArrayNotHasKey('uniqueItems', $schema);
+    }
+
+    public function test_multiple_of_rule_adds_multiple_of(): void
+    {
+        $schema = $this->mapper->validationRulesToSchema(['integer', 'multiple_of:5']);
+
+        $this->assertSame(5.0, $schema['multipleOf']);
+    }
+
+    public function test_gt_field_name_argument_is_skipped(): void
+    {
+        $schema = $this->mapper->validationRulesToSchema(['integer', 'gt:other_field']);
+
+        $this->assertArrayNotHasKey('exclusiveMinimum', $schema);
+    }
+
+    // --- Data provider tests ---
+
+    public static function ruleSchemaPropertyProvider(): array
+    {
+        return [
+            // Format rules
+            'uuid' => [['string', 'uuid'],                   'format',  'uuid'],
+            'email' => [['string', 'email'],                  'format',  'email'],
+            'ip' => [['string', 'ip'],                     'format',  'ipv4'],
+            'ipv4' => [['string', 'ipv4'],                   'format',  'ipv4'],
+            'ipv6' => [['string', 'ipv6'],                   'format',  'ipv6'],
+            'ulid' => [['string', 'ulid'],                   'format',  'ulid'],
+            // Character pattern rules
+            'alpha' => [['string', 'alpha'],                  'pattern', '^[a-zA-Z]+$'],
+            'alpha_num' => [['string', 'alpha_num'],              'pattern', '^[a-zA-Z0-9]+$'],
+            'alpha_dash' => [['string', 'alpha_dash'],             'pattern', '^[a-zA-Z0-9_-]+$'],
+            'ascii' => [['string', 'ascii'],                  'pattern', '^[\x00-\x7F]*$'],
+            'uppercase' => [['string', 'uppercase'],              'pattern', '^[^a-z]*$'],
+            'lowercase' => [['string', 'lowercase'],              'pattern', '^[^A-Z]*$'],
+            'hex_color' => [['string', 'hex_color'],              'pattern', '^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$'],
+            'mac_address' => [['string', 'mac_address'],            'pattern', '^([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}$'],
+            // Prefix/suffix pattern rules
+            'starts_with single' => [['string', 'starts_with:https'],      'pattern', '^(https)'],
+            'starts_with multiple' => [['string', 'starts_with:http,https'], 'pattern', '^(http|https)'],
+            'ends_with single' => [['string', 'ends_with:.pdf'],         'pattern', '(\.pdf)$'],
+            'ends_with multiple' => [['string', 'ends_with:.jpg,.png'],    'pattern', '(\.jpg|\.png)$'],
+        ];
+    }
+
+    #[DataProvider('ruleSchemaPropertyProvider')]
+    public function test_rule_sets_single_schema_property(array $rules, string $key, mixed $expected): void
+    {
+        $schema = $this->mapper->validationRulesToSchema($rules);
+
+        $this->assertSame($expected, $schema[$key]);
+    }
+
+    public static function comparisonConstraintProvider(): array
+    {
+        return [
+            'gt on integer' => [['integer', 'gt:10'],  'exclusiveMinimum', 10.0, 'minLength'],
+            'gt on string' => [['string',  'gt:3'],   'minLength',          4,  'exclusiveMinimum'],
+            'gte on integer' => [['integer', 'gte:5'],  'minimum',           5.0, 'minLength'],
+            'gte on string' => [['string',  'gte:2'],  'minLength',           2, 'minimum'],
+            'lt on integer' => [['integer', 'lt:100'], 'exclusiveMaximum', 100.0, 'maxLength'],
+            'lt on string' => [['string',  'lt:10'],  'maxLength',           9, 'exclusiveMaximum'],
+            'lte on integer' => [['integer', 'lte:50'], 'maximum',           50.0, 'maxLength'],
+            'lte on string' => [['string',  'lte:8'],  'maxLength',           8, 'maximum'],
+        ];
+    }
+
+    #[DataProvider('comparisonConstraintProvider')]
+    public function test_comparison_rule_dispatches_by_type(array $rules, string $key, mixed $expected, string $absentKey): void
+    {
+        $schema = $this->mapper->validationRulesToSchema($rules);
+
+        $this->assertSame($expected, $schema[$key]);
+        $this->assertArrayNotHasKey($absentKey, $schema);
     }
 }

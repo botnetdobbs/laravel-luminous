@@ -42,6 +42,32 @@ class TypeMapper
         'double' => ['type' => 'number',  'format' => 'double'],
     ];
 
+    // Exact-match validation rules that set $schema['format']
+    private const RULE_FORMAT_MAP = [
+        'email' => 'email',
+        'uuid' => 'uuid',
+        'url' => 'uri',
+        'ip' => 'ipv4',
+        'ipv4' => 'ipv4',
+        'ipv6' => 'ipv6',
+        'date' => 'date',
+        'ulid' => 'ulid',
+        'date_format:Y-m-d' => 'date',
+        'date_format:Y-m-d\TH:i:sP' => 'date-time',
+    ];
+
+    // Exact-match validation rules that set $schema['pattern']
+    private const RULE_PATTERN_MAP = [
+        'alpha' => '^[a-zA-Z]+$',
+        'alpha_num' => '^[a-zA-Z0-9]+$',
+        'alpha_dash' => '^[a-zA-Z0-9_-]+$',
+        'ascii' => '^[\x00-\x7F]*$',
+        'uppercase' => '^[^a-z]*$',
+        'lowercase' => '^[^A-Z]*$',
+        'hex_color' => '^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$',
+        'mac_address' => '^([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}$',
+    ];
+
     public static function applyNullable(array $schema): array
     {
         $type = $schema['type'] ?? 'string';
@@ -113,36 +139,24 @@ class TypeMapper
 
         $isNumeric = in_array($resolvedType, ['integer', 'number'], true);
         $isArray = $resolvedType === 'array';
+        $minKey = $this->minKey($isNumeric, $isArray);
+        $maxKey = $this->maxKey($isNumeric, $isArray);
 
         // Pass 2: apply constraints based on the resolved type
         foreach ($ruleStrings as $rule) {
-            if ($rule === 'email') {
-                $schema['format'] = 'email';
+            if (isset(self::RULE_FORMAT_MAP[$rule])) {
+                $schema['format'] = self::RULE_FORMAT_MAP[$rule];
 
                 continue;
             }
-            if ($rule === 'uuid') {
-                $schema['format'] = 'uuid';
+            if (isset(self::RULE_PATTERN_MAP[$rule])) {
+                $schema['pattern'] = self::RULE_PATTERN_MAP[$rule];
 
                 continue;
             }
-            if ($rule === 'url') {
-                $schema['format'] = 'uri';
 
-                continue;
-            }
             if ($rule === 'nullable') {
                 $schema['nullable'] = true;
-
-                continue;
-            }
-            if ($rule === 'ip' || $rule === 'ipv4') {
-                $schema['format'] = 'ipv4';
-
-                continue;
-            }
-            if ($rule === 'ipv6') {
-                $schema['format'] = 'ipv6';
 
                 continue;
             }
@@ -154,56 +168,47 @@ class TypeMapper
 
                 continue;
             }
-            if ($rule === 'date') {
-                $schema['format'] = 'date';
-
-                continue;
-            }
-            if ($rule === 'date_format:Y-m-d') {
-                $schema['format'] = 'date';
-
-                continue;
-            }
-            if ($rule === 'date_format:Y-m-d\TH:i:sP') {
-                $schema['format'] = 'date-time';
+            if ($rule === 'distinct' && $isArray) {
+                $schema['uniqueItems'] = true;
 
                 continue;
             }
 
+            // --- Parameterized rules (require parsing the suffix) ---
             if (str_starts_with($rule, 'min:')) {
-                $schema[$this->minKey($isNumeric, $isArray)] = (int) substr($rule, 4);
+                $schema[$minKey] = (int) substr($rule, strlen('min:'));
 
                 continue;
             }
             if (str_starts_with($rule, 'max:')) {
-                $schema[$this->maxKey($isNumeric, $isArray)] = (int) substr($rule, 4);
+                $schema[$maxKey] = (int) substr($rule, strlen('max:'));
 
                 continue;
             }
             if (str_starts_with($rule, 'size:')) {
-                $val = (int) substr($rule, 5);
-                $schema[$this->minKey($isNumeric, $isArray)] = $val;
-                $schema[$this->maxKey($isNumeric, $isArray)] = $val;
+                $val = (int) substr($rule, strlen('size:'));
+                $schema[$minKey] = $val;
+                $schema[$maxKey] = $val;
 
                 continue;
             }
             if (str_starts_with($rule, 'between:')) {
-                $parts = explode(',', substr($rule, 8), 2);
-                if (count($parts) !== 2) {
+                $range = $this->parsePair(substr($rule, strlen('between:')));
+                if ($range === null) {
                     $this->warn("Luminous: malformed between: rule '{$rule}', expected between:min,max. Skipping.");
 
                     continue;
                 }
-                [$min, $max] = $parts;
-                $schema[$this->minKey($isNumeric, $isArray)] = (int) $min;
-                $schema[$this->maxKey($isNumeric, $isArray)] = (int) $max;
+                [$min, $max] = $range;
+                $schema[$minKey] = (int) $min;
+                $schema[$maxKey] = (int) $max;
 
                 continue;
             }
             if (str_starts_with($rule, 'digits:')) {
                 // digits: means "exactly N digits". Only meaningful for string types in OpenAPI
                 if (! $isNumeric) {
-                    $d = (int) substr($rule, 7);
+                    $d = (int) substr($rule, strlen('digits:'));
                     $schema['minLength'] = $d;
                     $schema['maxLength'] = $d;
                     $schema['pattern'] = "^\\d{{$d}}$";
@@ -213,13 +218,13 @@ class TypeMapper
             }
             if (str_starts_with($rule, 'digits_between:')) {
                 if (! $isNumeric) {
-                    $parts = explode(',', substr($rule, 15), 2);
-                    if (count($parts) !== 2) {
+                    $range = $this->parsePair(substr($rule, strlen('digits_between:')));
+                    if ($range === null) {
                         $this->warn("Luminous: malformed digits_between: rule '{$rule}', expected digits_between:min,max. Skipping.");
 
                         continue;
                     }
-                    [$min, $max] = $parts;
+                    [$min, $max] = $range;
                     $schema['minLength'] = (int) $min;
                     $schema['maxLength'] = (int) $max;
                     $schema['pattern'] = "^\\d{{$min},{$max}}$";
@@ -228,12 +233,12 @@ class TypeMapper
                 continue;
             }
             if (str_starts_with($rule, 'in:')) {
-                $schema['enum'] = explode(',', substr($rule, 3));
+                $schema['enum'] = explode(',', substr($rule, strlen('in:')));
 
                 continue;
             }
             if (str_starts_with($rule, 'regex:')) {
-                $raw = substr($rule, 6);
+                $raw = substr($rule, strlen('regex:'));
                 // Strip common regex delimiters (e.g. /pattern/, ~pattern~, #pattern#)
                 if (strlen($raw) > 1 && $raw[0] === $raw[-1] && ! ctype_alnum($raw[0])) {
                     $raw = substr($raw, 1, -1);
@@ -250,15 +255,64 @@ class TypeMapper
             }
             if (str_starts_with($rule, 'min_digits:')) {
                 if (! $isNumeric) {
-                    $schema['minLength'] = (int) substr($rule, 11);
+                    $schema['minLength'] = (int) substr($rule, strlen('min_digits:'));
                 }
 
                 continue;
             }
             if (str_starts_with($rule, 'max_digits:')) {
                 if (! $isNumeric) {
-                    $schema['maxLength'] = (int) substr($rule, 11);
+                    $schema['maxLength'] = (int) substr($rule, strlen('max_digits:'));
                 }
+
+                continue;
+            }
+            if (str_starts_with($rule, 'multiple_of:')) {
+                $schema['multipleOf'] = (float) substr($rule, strlen('multiple_of:'));
+
+                continue;
+            }
+            if (str_starts_with($rule, 'gt:')) {
+                $n = substr($rule, strlen('gt:'));
+                if (is_numeric($n)) {
+                    $schema[$isNumeric ? 'exclusiveMinimum' : 'minLength'] = $isNumeric ? (float) $n : (int) $n + 1;
+                }
+
+                continue;
+            }
+            if (str_starts_with($rule, 'gte:')) {
+                $n = substr($rule, strlen('gte:'));
+                if (is_numeric($n)) {
+                    $schema[$isNumeric ? 'minimum' : 'minLength'] = $isNumeric ? (float) $n : (int) $n;
+                }
+
+                continue;
+            }
+            if (str_starts_with($rule, 'lt:')) {
+                $n = substr($rule, strlen('lt:'));
+                if (is_numeric($n)) {
+                    $schema[$isNumeric ? 'exclusiveMaximum' : 'maxLength'] = $isNumeric ? (float) $n : (int) $n - 1;
+                }
+
+                continue;
+            }
+            if (str_starts_with($rule, 'lte:')) {
+                $n = substr($rule, strlen('lte:'));
+                if (is_numeric($n)) {
+                    $schema[$isNumeric ? 'maximum' : 'maxLength'] = $isNumeric ? (float) $n : (int) $n;
+                }
+
+                continue;
+            }
+            if (str_starts_with($rule, 'starts_with:')) {
+                $parts = array_map(fn ($v) => preg_quote($v, '/'), explode(',', substr($rule, strlen('starts_with:'))));
+                $schema['pattern'] = '^('.implode('|', $parts).')';
+
+                continue;
+            }
+            if (str_starts_with($rule, 'ends_with:')) {
+                $parts = array_map(fn ($v) => preg_quote($v, '/'), explode(',', substr($rule, strlen('ends_with:'))));
+                $schema['pattern'] = '('.implode('|', $parts).')$';
 
                 continue;
             }
@@ -306,6 +360,13 @@ class TypeMapper
     private function maxKey(bool $isNumeric, bool $isArray): string
     {
         return $isNumeric ? 'maximum' : ($isArray ? 'maxItems' : 'maxLength');
+    }
+
+    private function parsePair(string $value): ?array
+    {
+        $parts = explode(',', $value, 2);
+
+        return count($parts) === 2 ? $parts : null;
     }
 
     private function warn(string $message): void
