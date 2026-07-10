@@ -412,6 +412,27 @@ class ControllerExtractorTest extends LuminousTestCase
         $this->assertArrayNotHasKey('text/event-stream', $content);
     }
 
+    public function test_api_stream_inline_item_schema_emitted_as_is(): void
+    {
+        $extractor = $this->makeExtractor();
+        $route = new ExtractedRoute(
+            httpMethod: 'get',
+            path: '/stream/inline',
+            controllerClass: TestAttributeController::class,
+            methodName: 'inlineStream',
+            routeName: 'stream.inline',
+            middlewares: [],
+        );
+
+        $op = $extractor->extract($route);
+
+        $content = $op['responses']['200']['content'];
+        $this->assertArrayHasKey('text/event-stream', $content);
+        $itemSchema = $content['text/event-stream']['itemSchema'];
+        $this->assertSame('object', $itemSchema['type']);
+        $this->assertSame(['type' => 'string'], $itemSchema['properties']['event']);
+    }
+
     public function test_api_query_querystring_location_emits_content_map(): void
     {
         $extractor = $this->makeExtractor();

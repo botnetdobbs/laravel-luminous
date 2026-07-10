@@ -62,6 +62,9 @@ class TestAttributeController
     #[ApiStream(LedgerEntry::class, 'application/jsonl', description: 'JSONL stream')]
     public function jsonlStream(): void {}
 
+    #[ApiStream(itemSchema: ['type' => 'object', 'properties' => ['event' => ['type' => 'string'], 'payload' => ['type' => 'object']]], description: 'Inline item schema stream')]
+    public function inlineStream(): void {}
+
     #[ApiQuery('filters', 'Complex filter expression', location: 'querystring')]
     #[ApiResponse(200, description: 'Filtered results')]
     public function filteredIndex(): void {}

@@ -99,7 +99,7 @@ class ResponseBuilder
                     "#[ApiResponse({$stream->status})]. ApiStream was ignored; use distinct status codes."
                 );
             } else {
-                $itemSchema = $this->resourceExtractor->extract($stream->schema);
+                $itemSchema = $stream->itemSchema ?? $this->resourceExtractor->extract($stream->schema);
                 $responses[$status] = [
                     'description' => $stream->description,
                     'content' => [

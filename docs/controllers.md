@@ -569,6 +569,19 @@ You can use `#[ApiExample]` alongside `#[ApiStream]` to show what one item looks
 public function stream(string $id): StreamedResponse {}
 ```
 
+If your stream items are simple and do not warrant a dedicated class, pass a raw OpenAPI schema array with `itemSchema:` instead:
+
+```php
+#[ApiStream(itemSchema: [
+    'type' => 'object',
+    'properties' => [
+        'event'   => ['type' => 'string'],
+        'payload' => ['type' => 'object'],
+    ],
+], description: 'Real-time events')]
+public function events(): StreamedResponse {}
+```
+
 Only one `#[ApiStream]` is allowed per method. If you need to document a second
 response at the same status code, use `#[ApiResponse]` for it and `#[ApiStream]` for
 the streaming one at a different status. Luminous logs a warning and skips the stream
