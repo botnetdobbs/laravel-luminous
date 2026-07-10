@@ -5,6 +5,7 @@ namespace Botnetdobbs\Luminous\Tests\Feature;
 use Botnetdobbs\Luminous\Support\CacheManager;
 use Botnetdobbs\Luminous\Support\YamlExporter;
 use Botnetdobbs\Luminous\Tests\LuminousTestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\Yaml\Yaml;
 
@@ -193,21 +194,22 @@ class HttpLayerTest extends LuminousTestCase
         $response->assertHeader('X-Content-Type-Options', 'nosniff');
     }
 
-    public function test_json_response_has_cache_control_no_store(): void
+    public static function cacheControlEndpointProvider(): array
     {
-        $response = $this->get('/docs/openapi.json');
-
-        $response->assertStatus(200);
-        $this->assertStringContainsString('no-store', $response->headers->get('Cache-Control', ''));
+        return [
+            'json' => ['/docs/openapi.json', null],
+            'yaml' => ['/docs/openapi.yaml', 'symfony/yaml not installed'],
+        ];
     }
 
-    public function test_yaml_response_has_cache_control_no_store(): void
+    #[DataProvider('cacheControlEndpointProvider')]
+    public function test_spec_endpoint_has_cache_control_no_store(string $url, ?string $skipUnless): void
     {
-        if (! class_exists(Yaml::class)) {
-            $this->markTestSkipped('symfony/yaml not installed');
+        if ($skipUnless !== null && ! class_exists(Yaml::class)) {
+            $this->markTestSkipped($skipUnless);
         }
 
-        $response = $this->get('/docs/openapi.yaml');
+        $response = $this->get($url);
 
         $response->assertStatus(200);
         $this->assertStringContainsString('no-store', $response->headers->get('Cache-Control', ''));

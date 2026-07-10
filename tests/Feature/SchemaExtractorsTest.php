@@ -12,7 +12,9 @@ use Botnetdobbs\Luminous\Tests\Fixtures\Enums\PaymentStatus;
 use Botnetdobbs\Luminous\Tests\Fixtures\Requests\AddressRequest;
 use Botnetdobbs\Luminous\Tests\Fixtures\Requests\ConfirmedRequest;
 use Botnetdobbs\Luminous\Tests\Fixtures\Requests\CreatePaymentRequest;
+use Botnetdobbs\Luminous\Tests\Fixtures\Requests\FileRuleRequest;
 use Botnetdobbs\Luminous\Tests\Fixtures\Requests\FileUploadRequest;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Botnetdobbs\Luminous\Tests\Fixtures\Requests\HintsRequest;
 use Botnetdobbs\Luminous\Tests\Fixtures\Requests\NonPublicSchemaRequest;
 use Botnetdobbs\Luminous\Tests\Fixtures\Requests\ShapeRequest;
@@ -456,21 +458,21 @@ class SchemaExtractorsTest extends LuminousTestCase
 
     // mediaType()
 
-    public function test_media_type_is_multipart_when_file_rule_present(): void
+    public static function multipartTriggerProvider(): array
     {
-        $registry = $this->makeRegistry();
-        $extractor = $this->makeRequestExtractor($registry);
-
-        $this->assertSame('multipart/form-data', $extractor->mediaType(FileUploadRequest::class));
+        return [
+            'file rule'        => [FileRuleRequest::class],
+            'mimetypes: rule'  => [FileUploadRequest::class],
+        ];
     }
 
-    public function test_media_type_is_multipart_for_mimetypes_colon_rule(): void
+    #[DataProvider('multipartTriggerProvider')]
+    public function test_media_type_is_multipart_for_upload_rules(string $requestClass): void
     {
         $registry = $this->makeRegistry();
         $extractor = $this->makeRequestExtractor($registry);
 
-        // FileUploadRequest uses mimetypes:image/jpeg,image/png (with colon variant)
-        $this->assertSame('multipart/form-data', $extractor->mediaType(FileUploadRequest::class));
+        $this->assertSame('multipart/form-data', $extractor->mediaType($requestClass));
     }
 
     public function test_media_type_is_json_by_default(): void
