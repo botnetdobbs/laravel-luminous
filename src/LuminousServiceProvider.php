@@ -4,19 +4,13 @@ namespace Botnetdobbs\Luminous;
 
 use Botnetdobbs\Luminous\Commands\ExportCommand;
 use Botnetdobbs\Luminous\Commands\GenerateCommand;
-use Botnetdobbs\Luminous\Extractors\ControllerExtractor;
-use Botnetdobbs\Luminous\Extractors\EnumExtractor;
-use Botnetdobbs\Luminous\Extractors\RequestExtractor;
-use Botnetdobbs\Luminous\Extractors\ResourceExtractor;
-use Botnetdobbs\Luminous\Extractors\ResponseBuilder;
-use Botnetdobbs\Luminous\Extractors\RouteExtractor;
-use Botnetdobbs\Luminous\Extractors\RulesSchemaBuilder;
+use Botnetdobbs\Luminous\Contracts\OpenApiGeneratorContract;
 use Botnetdobbs\Luminous\Generator\ComponentsRegistry;
+use Botnetdobbs\Luminous\Generator\GeneratorFactory;
 use Botnetdobbs\Luminous\Generator\OpenApiGenerator;
 use Botnetdobbs\Luminous\Generator\TagRegistry;
 use Botnetdobbs\Luminous\Http\Controllers\LuminousController;
 use Botnetdobbs\Luminous\Support\CacheManager;
-use Botnetdobbs\Luminous\Support\TypeMapper;
 use Botnetdobbs\Luminous\Support\YamlExporter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -29,33 +23,11 @@ class LuminousServiceProvider extends ServiceProvider
 
         $this->app->singleton(ComponentsRegistry::class);
         $this->app->singleton(TagRegistry::class);
+        $this->app->singleton(GeneratorFactory::class);
 
-        $this->app->singleton(OpenApiGenerator::class, function ($app) {
-            $config = $app['config']['luminous'];
-            $registry = $app->make(ComponentsRegistry::class);
-            $tagRegistry = $app->make(TagRegistry::class);
-            $routeExtractor = new RouteExtractor($config, $app['router']);
+        $this->app->singleton(OpenApiGenerator::class, fn ($app) => $app->make(GeneratorFactory::class)->make());
 
-            $enumExtractor = new EnumExtractor;
-            $typeMapper = new TypeMapper($enumExtractor);
-            $rulesBuilder = new RulesSchemaBuilder($typeMapper, $registry, $enumExtractor);
-            $requestExtractor = new RequestExtractor($typeMapper, $registry, $enumExtractor, $rulesBuilder);
-            $resourceExtractor = new ResourceExtractor($typeMapper, $registry, $enumExtractor);
-            $responseBuilder = new ResponseBuilder($resourceExtractor, $config);
-
-            return new OpenApiGenerator(
-                config: $config,
-                routeExtractor: $routeExtractor,
-                controllerExtractor: new ControllerExtractor(
-                    requestExtractor: $requestExtractor,
-                    tagRegistry: $tagRegistry,
-                    responseBuilder: $responseBuilder,
-                    config: $config,
-                ),
-                registry: $registry,
-                tagRegistry: $tagRegistry,
-            );
-        });
+        $this->app->singleton(OpenApiGeneratorContract::class, fn ($app) => $app->make(OpenApiGenerator::class));
 
         $this->app->alias(OpenApiGenerator::class, 'luminous');
 

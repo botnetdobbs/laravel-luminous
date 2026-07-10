@@ -12,7 +12,7 @@ class ShapeTest extends TestCase
     public static function primitiveTypeProvider(): array
     {
         return [
-            'string'  => [Shape::string(),  ['type' => 'string']],
+            'string' => [Shape::string(),  ['type' => 'string']],
             'integer' => [Shape::integer(), ['type' => 'integer']],
             'boolean' => [Shape::boolean(), ['type' => 'boolean']],
         ];
@@ -126,8 +126,8 @@ class ShapeTest extends TestCase
     public static function booleanModifierProvider(): array
     {
         return [
-            'readOnly'   => [Shape::string()->readOnly(),   'readOnly'],
-            'writeOnly'  => [Shape::string()->writeOnly(),  'writeOnly'],
+            'readOnly' => [Shape::string()->readOnly(),   'readOnly'],
+            'writeOnly' => [Shape::string()->writeOnly(),  'writeOnly'],
             'deprecated' => [Shape::string()->deprecated(), 'deprecated'],
         ];
     }

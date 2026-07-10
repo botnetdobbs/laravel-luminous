@@ -53,9 +53,16 @@ Run a basic structural check after generating:
 php artisan luminous:generate --validate
 ```
 
-The `--validate` flag checks for structural problems like duplicate `operationId`
-values, missing required OpenAPI fields, and invalid `$ref` paths. It does not do
-full OpenAPI schema validation. For that, use a dedicated validator (see below).
+The `--validate` flag only does a few simple checks:
+
+- the `openapi` field is set
+- `info.title` and `info.version` are set
+- there is at least one path
+- every HTTP operation has a `responses` object
+
+It does **not** look for duplicate `operationId` values, broken `$ref` links, or other
+full OpenAPI problems. For a full check, use a real OpenAPI linter
+(see [Check the spec (lint)](#check-the-spec-lint)).
 
 ---
 
@@ -102,6 +109,10 @@ Always enable the cache in production. The spec is generated through reflection 
 route inspection. It is fast enough for development, but caching means production
 requests never pay for reflection at all.
 
+The cache key is your `LUMINOUS_CACHE_KEY` prefix plus a short hash of package version
+and config. After a package upgrade or config change, the next request builds a new
+entry instead of serving an old one. Old entries expire on their own when their TTL runs out.
+
 ```env
 LUMINOUS_CACHE=true
 LUMINOUS_CACHE_TTL=3600
@@ -127,11 +138,14 @@ authentication before anyone can view the spec:
 LUMINOUS_MIDDLEWARE=auth:sanctum
 ```
 
-You can use any middleware your application supports. Multiple middleware can be
-provided as a comma-separated list:
+You can use any middleware your app already has. List more than one with a pipe (`|`),
+not a comma. Commas are used inside some middleware options (like `throttle:60,1`), so
+a comma would cut those names in the wrong place:
 
 ```env
-LUMINOUS_MIDDLEWARE=auth:sanctum,verified
+LUMINOUS_MIDDLEWARE=auth:sanctum|verified
+# or with rate limiting:
+# LUMINOUS_MIDDLEWARE=auth:sanctum|throttle:60,1
 ```
 
 Or hide the docs entirely and distribute the spec as a static file to internal
@@ -177,6 +191,48 @@ php artisan luminous:export --format=json --output=storage/app/public/openapi.js
 # Or commit it to the repo as documentation
 php artisan luminous:export --format=yaml --output=docs/openapi.yaml
 ```
+
+---
+
+### Using the exported spec
+
+Luminous writes a standard OpenAPI 3.2 file, so any OpenAPI tool can read it.
+
+#### Check the spec (lint)
+
+Tools like [Redocly CLI](https://redocly.com/docs/cli/) and
+[Spectral](https://stoplight.io/open-source/spectral) check your file against OpenAPI
+rules (and your own rules, if you add them):
+
+```bash
+php artisan luminous:export --format=json --no-cache --output=openapi.json
+npx @redocly/cli lint openapi.json
+```
+
+This finds missing descriptions, broken `$ref` links, bad schemas, and other problems
+before other people use the docs. Use this for a full check. `luminous:generate --validate`
+only does the simple checks listed in
+[Generate and cache the spec](#generate-and-cache-the-spec).
+
+#### Build an SDK (client library)
+
+Tools like [openapi-generator](https://openapi-generator.tech/) and
+[Fern](https://buildwithfern.com/) read your OpenAPI file and create a client library
+in the language you pick:
+
+```bash
+php artisan luminous:export --format=json --no-cache --output=openapi.json
+
+npx @openapitools/openapi-generator-cli generate \
+  -i openapi.json \
+  -g typescript-axios \
+  -o ./sdk
+```
+
+That example makes a TypeScript client from your Luminous file. You can do the same for
+Python, Go, Java, PHP, and other languages those tools support.
+
+These are normal OpenAPI tools. Luminous only needs to write a good spec file.
 
 ---
 

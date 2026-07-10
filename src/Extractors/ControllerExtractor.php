@@ -225,7 +225,7 @@ class ControllerExtractor
         preg_match_all('/\{(\w+)\}/', $route->path, $matches);
         $phpParams = collect($methodRef->getParameters())->keyBy(fn ($p) => $p->getName());
 
-        foreach ($matches[1] ?? [] as $name) {
+        foreach ($matches[1] as $name) {
             if (in_array($name, $explicitNames, true)) {
                 continue;
             }

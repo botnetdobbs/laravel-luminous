@@ -59,6 +59,8 @@
     "prefer-stable": true,
     "scripts": {
         "test": "./vendor/bin/phpunit",
-        "test:coverage": "XDEBUG_MODE=coverage ./vendor/bin/phpunit --coverage-html coverage"
+        "test:coverage": "XDEBUG_MODE=coverage ./vendor/bin/phpunit --coverage-html coverage",
+        "analyse": "./vendor/bin/phpstan analyse",
+        "lint": "./vendor/bin/pint --test"
     }
 }

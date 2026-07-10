@@ -2,10 +2,11 @@
 
 namespace Botnetdobbs\Luminous\Generator;
 
+use Botnetdobbs\Luminous\Contracts\OpenApiGeneratorContract;
 use Botnetdobbs\Luminous\Extractors\ControllerExtractor;
 use Botnetdobbs\Luminous\Extractors\RouteExtractor;
 
-class OpenApiGenerator
+class OpenApiGenerator implements OpenApiGeneratorContract
 {
     private const FIXED_PATH_ITEM_METHODS = [
         'get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace', 'query',

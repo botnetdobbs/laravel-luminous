@@ -41,11 +41,13 @@ class EnumExtractor
                 if (! $doc) {
                     return [];
                 }
+                $caseValue = $case->getValue();
+                $key = $caseValue instanceof \BackedEnum ? $caseValue->value : $caseValue->name;
                 if (preg_match('/@description\s+(.+)/u', $doc, $m)) {
-                    return [$case->getValue() => trim($m[1])];
+                    return [$key => trim($m[1])];
                 }
-                if (preg_match('/\*\s+([^@\*][^\n]+)/u', $doc, $m)) {
-                    return [$case->getValue() => trim($m[1])];
+                if (preg_match('/\*\s+([^@\*\s][^\n]*)/u', $doc, $m)) {
+                    return [$key => trim($m[1])];
                 }
 
                 return [];

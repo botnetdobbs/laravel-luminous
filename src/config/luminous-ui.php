@@ -238,10 +238,10 @@ return [
                     ],
                 ],
                 'opts' => [
-                    'nativeScrollbars'      => true,
-                    'expandResponses'       => '200,201',
-                    'hideDownloadButton'    => true,
-                    'requiredPropsFirst'    => true,
+                    'nativeScrollbars' => true,
+                    'expandResponses' => '200,201',
+                    'hideDownloadButton' => true,
+                    'requiredPropsFirst' => true,
                     'jsonSampleExpandLevel' => 3,
                 ],
                 'css' => implode(' ', [

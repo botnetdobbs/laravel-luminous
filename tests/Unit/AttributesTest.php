@@ -149,9 +149,9 @@ class AttributesTest extends TestCase
     {
         return [
             'ApiParam defaults to false' => [new ApiParam('id'), false],
-            'ApiParam accepts true'      => [new ApiParam('id', deprecated: true), true],
+            'ApiParam accepts true' => [new ApiParam('id', deprecated: true), true],
             'ApiQuery defaults to false' => [new ApiQuery('page'), false],
-            'ApiQuery accepts true'      => [new ApiQuery('legacyFilter', deprecated: true), true],
+            'ApiQuery accepts true' => [new ApiQuery('legacyFilter', deprecated: true), true],
         ];
     }
 
@@ -267,8 +267,8 @@ class AttributesTest extends TestCase
     public static function apiExampleMutualExclusionProvider(): array
     {
         return [
-            'value and dataValue'          => [fn () => new ApiExample('ex', value: ['key' => 'val'], dataValue: ['key' => 'val'])],
-            'value and serializedValue'    => [fn () => new ApiExample('ex', value: 'raw', serializedValue: 'raw')],
+            'value and dataValue' => [fn () => new ApiExample('ex', value: ['key' => 'val'], dataValue: ['key' => 'val'])],
+            'value and serializedValue' => [fn () => new ApiExample('ex', value: 'raw', serializedValue: 'raw')],
             'serializedValue and external' => [fn () => new ApiExample('ex', externalValue: 'https://example.com/ex.json', serializedValue: 'raw')],
         ];
     }
@@ -353,8 +353,8 @@ class AttributesTest extends TestCase
     public static function styleExplodeNullDefaultProvider(): array
     {
         return [
-            'ApiQuery'  => [new ApiQuery('filter')],
-            'ApiParam'  => [new ApiParam('id')],
+            'ApiQuery' => [new ApiQuery('filter')],
+            'ApiParam' => [new ApiParam('id')],
             'ApiHeader' => [new ApiHeader('X-Trace')],
         ];
     }

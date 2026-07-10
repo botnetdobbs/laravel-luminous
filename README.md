@@ -4,13 +4,16 @@
 
 
 
-Generate OpenAPI 3.2.0 docs from PHP 8 Attributes on your Laravel controllers. The
-docs are the code, so they cannot drift.
+Generate OpenAPI 3.2.0 docs from PHP 8 Attributes on your Laravel controllers.
 
 No YAML files to maintain. No docblocks to parse. Put a few attributes on your
 controllers, let your FormRequest `rules()` define the request body, document your
 API Resources with a single static `schema()` method, and Luminous builds the full spec
 automatically.
+
+Request bodies follow your FormRequest `rules()`, so they stay up to date with validation.
+Response docs use a separate `schema()` method (or `#[ApiProperty]`). Keep `schema()` next to
+`toArray()` so the docs still match what you return.
 
 ## Requirements
 
@@ -37,6 +40,25 @@ php artisan vendor:publish --tag=luminous-config
 ```
 
 Your API docs are live at `/docs`.
+
+### Local vs production
+
+By default, docs work right away on your machine: no login, UI turned on. That is on purpose
+so you can install the package and open `/docs` immediately.
+
+On a production server, protect the docs or turn them off:
+
+```env
+LUMINOUS_MIDDLEWARE=auth        # any middleware; separate several with | (not commas)
+# or
+LUMINOUS_ENABLED=false
+```
+
+Also build the cache when you deploy and limit which routes get documented with
+`include_routes`. Details:
+
+- [Deployment](docs/deployment.md): middleware, cache, generate, export
+- [Security](docs/security.md): documenting auth schemes and scopes in the spec
 
 ---
 
@@ -225,6 +247,12 @@ Yes. `#[ApiResponse]` accepts any class name. If the class has `#[ApiShape]` wit
 `schema()` method, or has `#[ApiProperty]` on its public properties, Luminous
 extracts the schema from it just like it would from a `JsonResource`.
 
+**Can I check the exported file, or build an SDK from it?**
+
+Yes. Export with `luminous:export`, then use normal OpenAPI tools. Redocly or Spectral
+can check the file. openapi-generator or Fern can build a client library. See
+[Using the exported spec](docs/deployment.md#using-the-exported-spec).
+
 ---
 
 ## Credits
@@ -234,4 +262,4 @@ extracts the schema from it just like it would from a `JsonResource`.
 
 ## License
 
-MIT
+The MIT License (MIT). See [LICENSE](LICENSE) for details.

@@ -2,7 +2,7 @@
 
 namespace Botnetdobbs\Luminous\Commands;
 
-use Botnetdobbs\Luminous\Generator\OpenApiGenerator;
+use Botnetdobbs\Luminous\Contracts\OpenApiGeneratorContract;
 use Botnetdobbs\Luminous\Support\CacheManager;
 use Illuminate\Console\Command;
 
@@ -10,13 +10,13 @@ class GenerateCommand extends Command
 {
     protected $signature = 'luminous:generate
                             {--force : Regenerate even if cache is warm}
-                            {--validate : Validate the generated spec against OpenAPI 3.2 rules}';
+                            {--validate : Run basic structural checks on the generated spec}';
 
     protected $description = 'Generate the OpenAPI spec and store it in cache';
 
     private const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'trace'];
 
-    public function handle(OpenApiGenerator $generator, CacheManager $cache): int
+    public function handle(OpenApiGeneratorContract $generator, CacheManager $cache): int
     {
         if ($this->option('force')) {
             $cache->flush();

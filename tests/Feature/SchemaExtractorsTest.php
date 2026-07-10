@@ -8,13 +8,13 @@ use Botnetdobbs\Luminous\Extractors\ResourceExtractor;
 use Botnetdobbs\Luminous\Extractors\RulesSchemaBuilder;
 use Botnetdobbs\Luminous\Generator\ComponentsRegistry;
 use Botnetdobbs\Luminous\Support\TypeMapper;
+use Botnetdobbs\Luminous\Tests\Fixtures\Enums\DocumentedStatus;
 use Botnetdobbs\Luminous\Tests\Fixtures\Enums\PaymentStatus;
 use Botnetdobbs\Luminous\Tests\Fixtures\Requests\AddressRequest;
 use Botnetdobbs\Luminous\Tests\Fixtures\Requests\ConfirmedRequest;
 use Botnetdobbs\Luminous\Tests\Fixtures\Requests\CreatePaymentRequest;
 use Botnetdobbs\Luminous\Tests\Fixtures\Requests\FileRuleRequest;
 use Botnetdobbs\Luminous\Tests\Fixtures\Requests\FileUploadRequest;
-use PHPUnit\Framework\Attributes\DataProvider;
 use Botnetdobbs\Luminous\Tests\Fixtures\Requests\HintsRequest;
 use Botnetdobbs\Luminous\Tests\Fixtures\Requests\NonPublicSchemaRequest;
 use Botnetdobbs\Luminous\Tests\Fixtures\Requests\ShapeRequest;
@@ -26,6 +26,7 @@ use Botnetdobbs\Luminous\Tests\Fixtures\Resources\ShapeResource;
 use Botnetdobbs\Luminous\Tests\Fixtures\Resources\TreeNodeResource;
 use Botnetdobbs\Luminous\Tests\LuminousTestCase;
 use Illuminate\Support\Facades\Log;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class SchemaExtractorsTest extends LuminousTestCase
 {
@@ -461,8 +462,8 @@ class SchemaExtractorsTest extends LuminousTestCase
     public static function multipartTriggerProvider(): array
     {
         return [
-            'file rule'        => [FileRuleRequest::class],
-            'mimetypes: rule'  => [FileUploadRequest::class],
+            'file rule' => [FileRuleRequest::class],
+            'mimetypes: rule' => [FileUploadRequest::class],
         ];
     }
 
@@ -488,15 +489,21 @@ class SchemaExtractorsTest extends LuminousTestCase
     public function test_enum_extractor_reads_at_description_tag(): void
     {
         $extractor = new EnumExtractor;
-        $schema = $extractor->extract(PaymentStatus::class);
+        $schema = $extractor->extract(DocumentedStatus::class);
 
-        // PaymentStatus cases have @description tags
-        if (isset($schema['x-enum-descriptions'])) {
-            $this->assertIsArray($schema['x-enum-descriptions']);
-        } else {
-            // If no docblocks, just confirm schema is valid
-            $this->assertArrayHasKey('enum', $schema);
-        }
+        $this->assertSame(['pending', 'settled', 'archived'], $schema['enum']);
+        $this->assertSame('Payment is awaiting confirmation', $schema['x-enum-descriptions']['pending']);
+    }
+
+    public function test_enum_extractor_falls_back_to_doc_comment_and_skips_undocumented_cases(): void
+    {
+        $extractor = new EnumExtractor;
+        $schema = $extractor->extract(DocumentedStatus::class);
+
+        $this->assertSame([
+            'pending' => 'Payment is awaiting confirmation',
+            'settled' => 'Payment settled successfully',
+        ], $schema['x-enum-descriptions'], 'Descriptions must be keyed by backing value and omit undocumented cases');
     }
 
     // ApiProperty new fields

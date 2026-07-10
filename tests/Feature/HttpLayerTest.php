@@ -5,8 +5,8 @@ namespace Botnetdobbs\Luminous\Tests\Feature;
 use Botnetdobbs\Luminous\Support\CacheManager;
 use Botnetdobbs\Luminous\Support\YamlExporter;
 use Botnetdobbs\Luminous\Tests\LuminousTestCase;
-use PHPUnit\Framework\Attributes\DataProvider;
 use Illuminate\Support\Facades\Log;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Yaml\Yaml;
 
 class HttpLayerTest extends LuminousTestCase
@@ -70,10 +70,12 @@ class HttpLayerTest extends LuminousTestCase
     {
         $this->app['config']->set('luminous.cache.enabled', true);
         $this->app['config']->set('luminous.cache.key', 'luminous:test:spec');
+        $this->app->forgetInstance(CacheManager::class);
 
         $this->get('/docs/openapi.json')->assertStatus(200);
 
-        $cached = cache()->store(config('luminous.cache.store'))->get('luminous:test:spec');
+        $manager = app(CacheManager::class);
+        $cached = cache()->store(config('luminous.cache.store'))->get($manager->key());
         $this->assertNotNull($cached, 'Spec was not written to cache after first request');
         $this->assertSame('3.2.0', $cached['openapi']);
 
@@ -81,7 +83,7 @@ class HttpLayerTest extends LuminousTestCase
         $response->assertStatus(200);
         $this->assertSame('3.2.0', $response->json('openapi'));
 
-        cache()->store(config('luminous.cache.store'))->forget('luminous:test:spec');
+        $manager->flush();
     }
 
     public function test_cache_manager_put_and_get(): void
@@ -89,6 +91,7 @@ class HttpLayerTest extends LuminousTestCase
         $this->app['config']->set('luminous.cache.enabled', true);
         $this->app['config']->set('luminous.cache.key', 'luminous:unit:test');
         $this->app['config']->set('luminous.cache.ttl', 60);
+        $this->app->forgetInstance(CacheManager::class);
 
         $manager = app(CacheManager::class);
         $spec = ['openapi' => '3.2.0', 'test' => true];
@@ -104,6 +107,7 @@ class HttpLayerTest extends LuminousTestCase
     {
         $this->app['config']->set('luminous.cache.enabled', false);
         $this->app['config']->set('luminous.cache.key', 'luminous:noop:test');
+        $this->app->forgetInstance(CacheManager::class);
 
         $manager = app(CacheManager::class);
 

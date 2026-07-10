@@ -2,9 +2,10 @@
 
 namespace Botnetdobbs\Luminous\Http\Controllers;
 
-use Botnetdobbs\Luminous\Generator\OpenApiGenerator;
+use Botnetdobbs\Luminous\Contracts\OpenApiGeneratorContract;
 use Botnetdobbs\Luminous\Support\CacheManager;
 use Botnetdobbs\Luminous\Support\YamlExporter;
+use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
@@ -12,7 +13,7 @@ use Illuminate\Routing\Controller;
 class LuminousController extends Controller
 {
     public function __construct(
-        private readonly OpenApiGenerator $generator,
+        private readonly OpenApiGeneratorContract $generator,
         private readonly CacheManager $cache,
         private readonly YamlExporter $yaml,
     ) {}
@@ -118,12 +119,16 @@ class LuminousController extends Controller
             return $this->generator->generate();
         }
 
-        return $this->cache->get() ?? cache()
-            ->store(config('luminous.cache.store'))
+        $resolve = fn (): array => $this->cache->get()
+            ?? tap($this->generator->generate(), fn ($s) => $this->cache->put($s));
+
+        $store = cache()->store(config('luminous.cache.store'))->getStore();
+        if (! $store instanceof LockProvider) {
+            return $resolve();
+        }
+
+        return $store
             ->lock('luminous:generating', 30)
-            ->block(10, function () {
-                return $this->cache->get()
-                    ?? tap($this->generator->generate(), fn ($s) => $this->cache->put($s));
-            });
+            ->block(10, $resolve);
     }
 }

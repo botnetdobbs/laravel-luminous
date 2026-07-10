@@ -2,7 +2,7 @@
 
 namespace Botnetdobbs\Luminous\Commands;
 
-use Botnetdobbs\Luminous\Generator\OpenApiGenerator;
+use Botnetdobbs\Luminous\Contracts\OpenApiGeneratorContract;
 use Botnetdobbs\Luminous\Support\CacheManager;
 use Botnetdobbs\Luminous\Support\YamlExporter;
 use Illuminate\Console\Command;
@@ -17,7 +17,7 @@ class ExportCommand extends Command
 
     protected $description = 'Export the OpenAPI spec to stdout or a file';
 
-    public function handle(OpenApiGenerator $generator, CacheManager $cache, YamlExporter $yaml): int
+    public function handle(OpenApiGeneratorContract $generator, CacheManager $cache, YamlExporter $yaml): int
     {
         $outputPath = $this->option('output');
         if ($outputPath && ! $this->validateOutputPath($outputPath)) {

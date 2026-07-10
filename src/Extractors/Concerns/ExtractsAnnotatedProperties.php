@@ -110,7 +110,8 @@ trait ExtractsAnnotatedProperties
                 $schema['pattern'] = $apiProp->pattern;
             }
 
-            if (($schema['type'] ?? '') === 'array' || (is_array($schema['type'] ?? '') && in_array('array', $schema['type'] ?? [], true))) {
+            $schemaType = $schema['type'] ?? null;
+            if ($schemaType === 'array' || (is_array($schemaType) && in_array('array', $schemaType, true))) {
                 $schema['items'] = $this->resolveArrayItems($prop, $apiProp);
             }
 
@@ -166,8 +167,8 @@ trait ExtractsAnnotatedProperties
                 return ['$ref' => $items->ref];
             }
             if ($items->type) {
-                return collect(['type' => $items->type, 'format' => $items->format ?: null, 'enum' => $items->enum ?: null])
-                    ->filter(fn ($v) => $v !== null && $v !== [])
+                return collect(['type' => $items->type, 'format' => $items->format, 'enum' => $items->enum])
+                    ->filter()
                     ->all();
             }
         }

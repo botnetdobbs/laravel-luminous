@@ -17,7 +17,11 @@ class RouteExtractor
     {
         $routes = [];
 
-        foreach ($this->router->getRoutes() as $route) {
+        // RouteCollectionInterface is not guaranteed iterable, so pull the Route[]
+        // array via its getRoutes() instead of iterating the collection directly.
+        $routeCollection = $this->router->getRoutes();
+
+        foreach ($routeCollection->getRoutes() as $route) {
             $action = $route->getActionName();
 
             if (! $action || str_contains($action, 'Closure') || $action === 'Closure') {

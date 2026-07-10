@@ -2,17 +2,10 @@
 
 namespace Botnetdobbs\Luminous\Tests\Feature;
 
-use Botnetdobbs\Luminous\Extractors\ControllerExtractor;
-use Botnetdobbs\Luminous\Extractors\EnumExtractor;
-use Botnetdobbs\Luminous\Extractors\RequestExtractor;
-use Botnetdobbs\Luminous\Extractors\ResourceExtractor;
-use Botnetdobbs\Luminous\Extractors\ResponseBuilder;
-use Botnetdobbs\Luminous\Extractors\RouteExtractor;
-use Botnetdobbs\Luminous\Extractors\RulesSchemaBuilder;
 use Botnetdobbs\Luminous\Generator\ComponentsRegistry;
+use Botnetdobbs\Luminous\Generator\GeneratorFactory;
 use Botnetdobbs\Luminous\Generator\OpenApiGenerator;
 use Botnetdobbs\Luminous\Generator\TagRegistry;
-use Botnetdobbs\Luminous\Support\TypeMapper;
 use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\DanglingTagController;
 use Botnetdobbs\Luminous\Tests\Fixtures\Controllers\PaymentController;
 use Botnetdobbs\Luminous\Tests\LuminousTestCase;
@@ -45,24 +38,10 @@ class OpenApiGeneratorTest extends LuminousTestCase
 
     protected function makeGenerator(?ComponentsRegistry $registry = null): OpenApiGenerator
     {
-        $config = config('luminous');
-        $registry ??= new ComponentsRegistry;
-        $tagRegistry = new TagRegistry;
-        $enumEx = new EnumExtractor;
-        $typeMapper = new TypeMapper($enumEx);
-        $rulesBuilder = new RulesSchemaBuilder($typeMapper, $registry, $enumEx);
-        $requestEx = new RequestExtractor($typeMapper, $registry, $enumEx, $rulesBuilder);
-        $resourceEx = new ResourceExtractor($typeMapper, $registry, $enumEx);
-        $responseBuilder = new ResponseBuilder($resourceEx, $config);
-        $controllerEx = new ControllerExtractor($requestEx, $tagRegistry, $responseBuilder, $config);
-        $routeEx = new RouteExtractor($config, $this->app['router']);
-
-        return new OpenApiGenerator(
-            config: $config,
-            routeExtractor: $routeEx,
-            controllerExtractor: $controllerEx,
-            registry: $registry,
-            tagRegistry: $tagRegistry,
+        return $this->app->make(GeneratorFactory::class)->make(
+            config: config('luminous'),
+            registry: $registry ?? new ComponentsRegistry,
+            tagRegistry: new TagRegistry,
         );
     }
 
@@ -195,18 +174,12 @@ class OpenApiGeneratorTest extends LuminousTestCase
     {
         // Passing a fresh router with no routes should produce an empty paths object.
         $emptyRouter = new Router(new Dispatcher);
-        $config = array_merge(config('luminous'), ['exclude_routes' => []]);
-        $registry = new ComponentsRegistry;
-        $tagRegistry = new TagRegistry;
-        $enumEx = new EnumExtractor;
-        $typeMapper = new TypeMapper($enumEx);
-        $rulesBuilder = new RulesSchemaBuilder($typeMapper, $registry, $enumEx);
-        $requestEx = new RequestExtractor($typeMapper, $registry, $enumEx, $rulesBuilder);
-        $resourceEx = new ResourceExtractor($typeMapper, $registry, $enumEx);
-        $responseBuilder = new ResponseBuilder($resourceEx, $config);
-        $controllerEx = new ControllerExtractor($requestEx, $tagRegistry, $responseBuilder, $config);
-        $routeEx = new RouteExtractor($config, $emptyRouter);
-        $generator = new OpenApiGenerator($config, $routeEx, $controllerEx, $registry, $tagRegistry);
+        $generator = $this->app->make(GeneratorFactory::class)->make(
+            config: array_merge(config('luminous'), ['exclude_routes' => []]),
+            registry: new ComponentsRegistry,
+            tagRegistry: new TagRegistry,
+            router: $emptyRouter,
+        );
 
         $spec = $generator->generate();
 

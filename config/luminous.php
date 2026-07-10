@@ -30,16 +30,13 @@ return [
     | Middleware
     |--------------------------------------------------------------------------
     |
-    | Middleware applied to all three docs routes. Accepts a comma-separated
-    | list of middleware names in the environment variable.
+    | Middleware for all three docs routes. Separate names with a pipe (|), not
+    | a comma, because commas appear inside options like throttle:60,1.
     |
     | Example: LUMINOUS_MIDDLEWARE=auth|throttle:60,1
     |
-    | Use | as the delimiter, not commas. Commas appear inside middleware parameters
-    | like throttle:60,1 and would silently split them into invalid middleware names.
-    |
-    | For production, always set at minimum: LUMINOUS_MIDDLEWARE=auth
-    | Leaving this blank exposes your full API surface publicly with no authentication.
+    | In production, set at least: LUMINOUS_MIDDLEWARE=auth
+    | If you leave this empty, anyone can open your docs with no login.
     |
     */
     'middleware' => env('LUMINOUS_MIDDLEWARE')
@@ -244,6 +241,9 @@ return [
     |
     | Caching avoids re-generating the spec on every request. Recommended for
     | production. Flush the cache with: php artisan luminous:generate --force
+    |
+    | "key" is a prefix. Luminous appends a short hash of package version and
+    | config so upgrades and config changes do not reuse a stale cached spec.
     |
     | "store" accepts any cache store defined in config/cache.php.
     | Leave null to use the default store.

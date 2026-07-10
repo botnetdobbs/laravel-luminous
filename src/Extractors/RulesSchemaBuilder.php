@@ -63,7 +63,8 @@ class RulesSchemaBuilder
                 $confirmField = $field.'_confirmation';
                 if (in_array('confirmed', $ruleStrings, true) && ! array_key_exists($confirmField, $topLevel)) {
                     $schema['writeOnly'] = true;
-                    if (($schema['type'] ?? '') === 'string' || (is_array($schema['type'] ?? '') && in_array('string', $schema['type'] ?? [], true))) {
+                    $schemaType = $schema['type'] ?? null;
+                    if ($schemaType === 'string' || (is_array($schemaType) && in_array('string', $schemaType, true))) {
                         $schema['format'] = 'password';
                     }
                     $companion = [
@@ -253,7 +254,7 @@ class RulesSchemaBuilder
 
         $schema = ['type' => 'object', 'properties' => $properties];
         if (! empty($required)) {
-            $schema['required'] = array_values($required);
+            $schema['required'] = $required;
         }
 
         return $schema;
