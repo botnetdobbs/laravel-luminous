@@ -102,7 +102,7 @@ return [
 
 ## Common .env settings
 
-```env
+```bash
 # Basic info
 LUMINOUS_TITLE="Payments API"
 LUMINOUS_VERSION="2.0.0"
@@ -239,7 +239,7 @@ Scalar has a built-in AI chat that lets users ask questions about your API based
 
 It works on localhost without a key (10 free test messages). For production, get a key at scalar.com and set it in `.env`:
 
-```env
+```bash
 SCALAR_AGENT_KEY=your-key-here
 ```
 
@@ -334,7 +334,7 @@ link at the top of the page, separate from individual endpoint links.
 
 Leave it `null` (the default) to omit the field entirely. Individual operations and
 tags can also carry their own external docs links via `externalDocsUrl` on
-`#[ApiOperation]` and `#[ApiTag]`. See [Documenting Controllers](controllers.md).
+`#[ApiOperation]` and `#[ApiTag]`. See [Documenting Controllers](/controllers).
 
 ---
 
@@ -373,7 +373,7 @@ Add your own schemas, override the defaults, or remove an entry by setting it to
 
 Luminous only serves the spec and UI. Rate limiting, authentication, and any other access controls are standard Laravel middleware configured via `LUMINOUS_MIDDLEWARE`.
 
-```env
+```bash
 # Require Sanctum authentication
 LUMINOUS_MIDDLEWARE=auth:sanctum
 
@@ -387,7 +387,7 @@ Use `|` as the delimiter between middleware, not commas. Commas appear inside mi
 
 ## Security schemes
 
-Define your schemes here and reference them by name in `#[ApiSecurity]` attributes on your controllers. See [Security](security.md) for full details.
+Define your schemes here and reference them by name in `#[ApiSecurity]` attributes on your controllers. See [Security](/security) for full details.
 
 ```php
 'security_schemes' => [
@@ -446,6 +446,3 @@ Leave it empty (`''`) to show all schemas.
 ],
 ```
 
----
-
-[← README](../README.md) &nbsp;&nbsp; [Documenting Controllers →](controllers.md)

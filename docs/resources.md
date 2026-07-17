@@ -49,7 +49,7 @@ class PaymentResource extends JsonResource
 The `schema()` method must be `public static`. Luminous calls it statically during
 spec generation.
 
-See [The Shape Builder](shape-builder.md) for all available methods.
+See [The Shape Builder](/shape-builder) for all available methods.
 
 ---
 
@@ -306,6 +306,3 @@ class PaymentSummaryDto
 public function summary(string $id): JsonResponse {}
 ```
 
----
-
-[← Documenting Form Requests](form-requests.md) &nbsp;&nbsp; [The Shape Builder →](shape-builder.md)

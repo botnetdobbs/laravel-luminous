@@ -126,7 +126,7 @@ public function show(string $id): JsonResponse {}
 
 The second argument is the class that describes the response body. Luminous reads
 that class and generates the schema automatically. See
-[Documenting API Resources](resources.md) for how to set that up.
+[Documenting API Resources](/resources) for how to set that up.
 
 For a response with no body:
 
@@ -169,7 +169,7 @@ You have three options when you return data directly from your controller withou
 public function status(string $id): JsonResponse {}
 ```
 
-For a more complex shape, create a plain PHP class with `#[ApiShape]` and pass it as the second argument instead. Luminous treats it exactly like a `JsonResource`. See [Documenting API Resources](resources.md#using-a-plain-class-or-dto-instead-of-a-jsonresource) for details.
+For a more complex shape, create a plain PHP class with `#[ApiShape]` and pass it as the second argument instead. Luminous treats it exactly like a `JsonResource`. See [Documenting API Resources](/resources#using-a-plain-class-or-dto-instead-of-a-jsonresource) for details.
 
 **Named schema reference** - define the schema once in `shared_schemas` config and reference it by name. This is useful when several endpoints return the same shape:
 
@@ -707,6 +707,3 @@ the right `#[ApiResponse]`:
 public function show(string $id): JsonResponse {}
 ```
 
----
-
-[← Configuration](configuration.md) &nbsp;&nbsp; [Documenting Form Requests →](form-requests.md)

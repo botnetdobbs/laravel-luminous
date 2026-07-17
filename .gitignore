@@ -1,10 +1,15 @@
 /vendor/
+/node_modules/
 
 .phpunit.cache/*
 .phpunit.result.cache
 /coverage/*
 
 /build/
+
+docs/.vitepress/dist
+docs/.vitepress/cache
+
 
 
 */**/.DS_Store

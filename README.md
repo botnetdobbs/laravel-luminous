@@ -2,8 +2,6 @@
 
 [![build](https://github.com/botnet-dobbs/laravel-luminous/actions/workflows/main.yml/badge.svg)](https://github.com/botnet-dobbs/laravel-luminous/actions/workflows/main.yml) ![Packagist Downloads](https://img.shields.io/packagist/dt/botnetdobbs/laravel-luminous)
 
-
-
 Generate OpenAPI 3.2.0 docs from PHP 8 Attributes on your Laravel controllers.
 
 No YAML files to maintain. No docblocks to parse. Put a few attributes on your
@@ -14,6 +12,8 @@ automatically.
 Request bodies follow your FormRequest `rules()`, so they stay up to date with validation.
 Response docs use a separate `schema()` method (or `#[ApiProperty]`). Keep `schema()` next to
 `toArray()` so the docs still match what you return.
+
+**Docs:** [botnet-dobbs.github.io/laravel-luminous](https://botnet-dobbs.github.io/laravel-luminous/)
 
 ## Requirements
 
@@ -48,7 +48,7 @@ so you can install the package and open `/docs` immediately.
 
 On a production server, protect the docs or turn them off:
 
-```env
+```bash
 LUMINOUS_MIDDLEWARE=auth        # any middleware; separate several with | (not commas)
 # or
 LUMINOUS_ENABLED=false
@@ -57,8 +57,8 @@ LUMINOUS_ENABLED=false
 Also build the cache when you deploy and limit which routes get documented with
 `include_routes`. Details:
 
-- [Deployment](docs/deployment.md): middleware, cache, generate, export
-- [Security](docs/security.md): documenting auth schemes and scopes in the spec
+- [Deployment](https://botnet-dobbs.github.io/laravel-luminous/deployment): middleware, cache, generate, export
+- [Security](https://botnet-dobbs.github.io/laravel-luminous/security): documenting auth schemes and scopes in the spec
 
 ---
 
@@ -185,13 +185,15 @@ That is the whole picture. The individual docs below go into every detail.
 
 ## Documentation
 
-- [Configuration](docs/configuration.md)
-- [Documenting Controllers](docs/controllers.md)
-- [Documenting Form Requests](docs/form-requests.md)
-- [Documenting API Resources](docs/resources.md)
-- [The Shape Builder](docs/shape-builder.md)
-- [Security](docs/security.md)
-- [CLI Commands and Deployment](docs/deployment.md)
+Full docs: [botnet-dobbs.github.io/laravel-luminous](https://botnet-dobbs.github.io/laravel-luminous/)
+
+- [Configuration](https://botnet-dobbs.github.io/laravel-luminous/configuration)
+- [Documenting Controllers](https://botnet-dobbs.github.io/laravel-luminous/controllers)
+- [Documenting Form Requests](https://botnet-dobbs.github.io/laravel-luminous/form-requests)
+- [Documenting API Resources](https://botnet-dobbs.github.io/laravel-luminous/resources)
+- [The Shape Builder](https://botnet-dobbs.github.io/laravel-luminous/shape-builder)
+- [Security](https://botnet-dobbs.github.io/laravel-luminous/security)
+- [CLI Commands and Deployment](https://botnet-dobbs.github.io/laravel-luminous/deployment)
 
 ---
 
@@ -251,7 +253,7 @@ extracts the schema from it just like it would from a `JsonResource`.
 
 Yes. Export with `luminous:export`, then use normal OpenAPI tools. Redocly or Spectral
 can check the file. openapi-generator or Fern can build a client library. See
-[Using the exported spec](docs/deployment.md#using-the-exported-spec).
+[Using the exported spec](https://botnet-dobbs.github.io/laravel-luminous/deployment#using-the-exported-spec).
 
 ---
 

@@ -256,6 +256,3 @@ public function hints(): array
 }
 ```
 
----
-
-[← Documenting API Resources](resources.md) &nbsp;&nbsp; [Security →](security.md)

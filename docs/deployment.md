@@ -113,7 +113,7 @@ The cache key is your `LUMINOUS_CACHE_KEY` prefix plus a short hash of package v
 and config. After a package upgrade or config change, the next request builds a new
 entry instead of serving an old one. Old entries expire on their own when their TTL runs out.
 
-```env
+```bash
 LUMINOUS_CACHE=true
 LUMINOUS_CACHE_TTL=3600
 LUMINOUS_CACHE_STORE=redis
@@ -134,7 +134,7 @@ php artisan luminous:generate --force
 Docs should not be publicly accessible in production. Set middleware to require
 authentication before anyone can view the spec:
 
-```env
+```bash
 LUMINOUS_MIDDLEWARE=auth:sanctum
 ```
 
@@ -142,7 +142,7 @@ You can use any middleware your app already has. List more than one with a pipe 
 not a comma. Commas are used inside some middleware options (like `throttle:60,1`), so
 a comma would cut those names in the wrong place:
 
-```env
+```bash
 LUMINOUS_MIDDLEWARE=auth:sanctum|verified
 # or with rate limiting:
 # LUMINOUS_MIDDLEWARE=auth:sanctum|throttle:60,1
@@ -151,7 +151,7 @@ LUMINOUS_MIDDLEWARE=auth:sanctum|verified
 Or hide the docs entirely and distribute the spec as a static file to internal
 consumers only:
 
-```env
+```bash
 LUMINOUS_ENABLED=false
 ```
 
@@ -234,6 +234,3 @@ Python, Go, Java, PHP, and other languages those tools support.
 
 These are normal OpenAPI tools. Luminous only needs to write a good spec file.
 
----
-
-[← Security](security.md) &nbsp;&nbsp; [Back to README →](../README.md)
