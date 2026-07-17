@@ -52,6 +52,29 @@ class TypeMapperTest extends TestCase
         $this->assertArrayNotHasKey('minimum', $schema);
     }
 
+    public function test_numeric_min_max_keeps_float_parameters(): void
+    {
+        $schema = $this->mapper->validationRulesToSchema(['numeric', 'min:0.01', 'max:9999.99']);
+
+        $this->assertSame(0.01, $schema['minimum']);
+        $this->assertSame(9999.99, $schema['maximum']);
+    }
+
+    public function test_numeric_between_keeps_float_parameters(): void
+    {
+        $schema = $this->mapper->validationRulesToSchema(['numeric', 'between:0.5,99.5']);
+
+        $this->assertSame(0.5, $schema['minimum']);
+        $this->assertSame(99.5, $schema['maximum']);
+    }
+
+    public function test_string_min_with_float_parameter_truncates_to_integer_length(): void
+    {
+        $schema = $this->mapper->validationRulesToSchema(['string', 'min:2.5']);
+
+        $this->assertSame(2, $schema['minLength']);
+    }
+
     public function test_in_rule_produces_enum(): void
     {
         $schema = $this->mapper->validationRulesToSchema(['string', 'in:a,b,c']);

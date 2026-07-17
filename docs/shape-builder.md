@@ -69,10 +69,10 @@ Shape::object([
 
 ```php
 Shape::ref(CustomerResource::class)
-// Produces: { $ref: '#/components/schemas/Customer' }
+// Produces: { $ref: '#/components/schemas/CustomerResource' }
 
 Shape::ref(CustomerResource::class)->nullable()
-// Produces: { oneOf: [ { $ref: '...' }, { type: null } ] }
+// Produces: { oneOf: [ { $ref: '...' }, { type: 'null' } ] }
 ```
 
 ### PHP backed enum
@@ -178,6 +178,10 @@ automatically:
 So `Shape::integer()->min(1)` produces `minimum: 1` and
 `Shape::string()->min(2)` produces `minLength: 2`. You never have to remember which
 constraint name to use.
+
+Floats work the same way they do in Laravel validation: `min(0.01)` on a number
+produces `minimum: 0.01`, matching a `min:0.01` rule. Length and item counts are
+always whole numbers, so floats are truncated for string and array types.
 
 ---
 

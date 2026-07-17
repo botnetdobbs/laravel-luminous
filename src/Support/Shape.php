@@ -208,8 +208,9 @@ final class Shape
 
     /**
      * Set min constraint. Infers minimum/minLength/minItems from the current type.
+     * Floats are kept for numeric types; length/items constraints must be integers.
      */
-    public function min(int $value): self
+    public function min(int|float $value): self
     {
         $clone = clone $this;
         $type = $clone->schema['type'] ?? 'string';
@@ -217,9 +218,9 @@ final class Shape
         if (in_array($type, ['integer', 'number'], true)) {
             $clone->schema['minimum'] = $value;
         } elseif ($type === 'array') {
-            $clone->schema['minItems'] = $value;
+            $clone->schema['minItems'] = (int) $value;
         } else {
-            $clone->schema['minLength'] = $value;
+            $clone->schema['minLength'] = (int) $value;
         }
 
         return $clone;
@@ -227,8 +228,9 @@ final class Shape
 
     /**
      * Set max constraint. Infers maximum/maxLength/maxItems from the current type.
+     * Floats are kept for numeric types; length/items constraints must be integers.
      */
-    public function max(int $value): self
+    public function max(int|float $value): self
     {
         $clone = clone $this;
         $type = $clone->schema['type'] ?? 'string';
@@ -236,9 +238,9 @@ final class Shape
         if (in_array($type, ['integer', 'number'], true)) {
             $clone->schema['maximum'] = $value;
         } elseif ($type === 'array') {
-            $clone->schema['maxItems'] = $value;
+            $clone->schema['maxItems'] = (int) $value;
         } else {
-            $clone->schema['maxLength'] = $value;
+            $clone->schema['maxLength'] = (int) $value;
         }
 
         return $clone;

@@ -176,17 +176,17 @@ class TypeMapper
 
             // --- Parameterized rules (require parsing the suffix) ---
             if (str_starts_with($rule, 'min:')) {
-                $schema[$minKey] = (int) substr($rule, strlen('min:'));
+                $schema[$minKey] = $this->boundParam(substr($rule, strlen('min:')), $isNumeric);
 
                 continue;
             }
             if (str_starts_with($rule, 'max:')) {
-                $schema[$maxKey] = (int) substr($rule, strlen('max:'));
+                $schema[$maxKey] = $this->boundParam(substr($rule, strlen('max:')), $isNumeric);
 
                 continue;
             }
             if (str_starts_with($rule, 'size:')) {
-                $val = (int) substr($rule, strlen('size:'));
+                $val = $this->boundParam(substr($rule, strlen('size:')), $isNumeric);
                 $schema[$minKey] = $val;
                 $schema[$maxKey] = $val;
 
@@ -200,8 +200,8 @@ class TypeMapper
                     continue;
                 }
                 [$min, $max] = $range;
-                $schema[$minKey] = (int) $min;
-                $schema[$maxKey] = (int) $max;
+                $schema[$minKey] = $this->boundParam($min, $isNumeric);
+                $schema[$maxKey] = $this->boundParam($max, $isNumeric);
 
                 continue;
             }
@@ -350,6 +350,19 @@ class TypeMapper
         }
 
         return collect($schema)->filter(fn ($v) => $v !== [] && $v !== '')->all();
+    }
+
+    /**
+     * Parse a min/max/size/between rule parameter the way Laravel compares it:
+     * numeric fields keep float parameters, length/items constraints are integers.
+     */
+    private function boundParam(string $raw, bool $isNumeric): int|float
+    {
+        if ($isNumeric && is_numeric($raw) && str_contains($raw, '.')) {
+            return (float) $raw;
+        }
+
+        return (int) $raw;
     }
 
     private function minKey(bool $isNumeric, bool $isArray): string

@@ -172,6 +172,22 @@ class ShapeTest extends TestCase
         $this->assertSame(10, $schema['maxItems']);
     }
 
+    public function test_min_max_on_number_keep_float_values(): void
+    {
+        $schema = Shape::number()->min(0.01)->max(9999.99)->toArray();
+
+        $this->assertSame(0.01, $schema['minimum']);
+        $this->assertSame(9999.99, $schema['maximum']);
+    }
+
+    public function test_min_max_on_string_truncate_float_values_to_integer_lengths(): void
+    {
+        $schema = Shape::string()->min(2.5)->max(10.9)->toArray();
+
+        $this->assertSame(2, $schema['minLength']);
+        $this->assertSame(10, $schema['maxLength']);
+    }
+
     public function test_array_of_builds_typed_array(): void
     {
         $schema = Shape::arrayOf(Shape::uuid())->toArray();

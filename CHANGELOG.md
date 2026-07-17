@@ -8,7 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Releases before 1.6.0 predate this changelog. See the
 [GitHub releases](https://github.com/botnet-dobbs/laravel-luminous/releases) for older history.
 
-## [Unreleased]
+## [1.7.0] - 2026-07-17
+
+### Changed
+
+- `Shape::min()` and `Shape::max()` accept floats, and `TypeMapper` keeps float parameters from `min:`, `max:`, `size:`, and `between:` rules on numeric fields, matching how Laravel compares them. A `min:0.01` rule now documents `minimum: 0.01` instead of `minimum: 0`. String lengths and array item counts are still whole numbers.
 
 ## [1.6.0] - 2026-07-11
 

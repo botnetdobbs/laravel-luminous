@@ -77,7 +77,7 @@ export default defineConfig({
     },
     footer: {
       message: 'Released under the MIT License.',
-      copyright: 'Copyright © Lazarus Odhiambo',
+      copyright: 'Copyright © <a href="https://github.com/botnetdobbs">Lazarus Odhiambo</a>',
     },
     docFooter: {
       prev: 'Previous',
